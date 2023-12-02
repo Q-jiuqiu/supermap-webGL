@@ -1,0 +1,139 @@
+<!--
+ * @Author: quling
+ * @Date: 2023-11-03 09:38:00
+ * @LastEditors: quling
+ * @LastEditTime: 2023-11-10 14:18:39
+ * @Description: 
+ * @FilePath: \cesium-study\examples\week02.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>放大、缩小、全屏</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <style>
+    body {
+      position: relative;
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="flyHome">全图</button>
+    <button id="zoomIn">放大</button>
+    <button id="zoomOut">缩小</button>
+    <button id="setPosition">设置相机位置</button>
+    <button id="setDirection">设置相机朝向</button>
+    <button id="setView">设置相机视角</button>
+    <button id="setSceneMode">切换模式</button>
+  </div>
+  <div id="toolbar" style="position: absolute;left: 5px;top: 5px;display: none;">
+    <select id="imageryOptions" class="selectpicker show-tick form-control">
+      <!--<option disabled selected value>&#45;&#45;选择服务类型&#45;&#45;</option>-->
+      <option selected value="WGS">自定义影像&地形-平面场景</option>
+      <option value="MEC">倾斜数据-三维场景</option>
+    </select>
+  </div>
+  <div id="Container"></div>
+
+  <script type="text/javascript">
+    let viewer = null
+    function onload(SuperMap3D) {
+      viewer = new SuperMap3D.Viewer('Container', {
+        sceneModePicker: true,
+        navigation: false,
+      });
+
+    }
+    onload(SuperMap3D);
+
+    // 全图
+    $("#flyHome").click(function () {
+      if (viewer) {
+        const camera = viewer.scene.camera
+        // 飞行持续2秒
+        camera.flyHome(2)
+      }
+    })
+
+    // 放大
+    $("#zoomIn").click(function () {
+      if (viewer) {
+        const camera = viewer.scene.camera;
+        camera.zoomIn(200000)
+        console.log(viewer, position);
+      }
+    })
+
+    // 缩小
+    $("#zoomOut").click(function () {
+      const camera = viewer.scene.camera;
+      camera.zoomOut(200000)
+    })
+
+    // 设置相机位置
+    $("#setPosition").click(function () {
+      if (viewer) {
+        const camera = viewer.scene.camera;
+        // 获取当前相机位置
+        const position = camera.position;
+        console.log(position);
+        // 设置相机位置
+        camera.position = new SuperMap3D.Cartesian3(100, 895, 587)
+      }
+    })
+
+    // 设置相机朝向
+    $("#setDirection").click(function () {
+      const camera = viewer.scene.camera;
+      // 获取相机朝向
+      const direction = camera.direction;
+      camera.direction = new SuperMap3D.Cartesian3(0.2, -0.88, -0.4);
+    })
+
+    // 设置相机视角
+    $("#setView").click(function () {
+      const camera = viewer.scene.camera;
+      // y轴 相机方位角，单位为弧度
+      const heading = camera.heading;
+      // x轴 相机的俯仰角，单位为弧度
+      const pitch = camera.pitch;
+      // z轴 相机旋转角度，单位为弧度
+      const roll = camera.roll;
+      console.log(heading, pitch, roll);
+
+      camera.setView({
+        // 相机最终位置  将以度为单位的经、纬度数值转换为笛卡尔坐标
+        destination: SuperMap3D.Cartesian3.fromDegrees(-74.01881302800248, 40.69114333714821, 1000),
+        orientation: {
+          // 将度数转换为弧度
+          heading: SuperMap3D.Math.toRadians(0),
+          pitch: SuperMap3D.Math.toRadians(-90),
+          roll: SuperMap3D.Math.toRadians(0)
+        }
+      });
+    })
+
+    // 切换视图模式 3D,2D,2.5D
+    $("#setSceneMode").click(() => {
+      console.log(viewer.scene.mode);
+      viewer.scene.mode = SuperMap3D.SceneMode.SCENE2D
+    })
+  </script>
+</body>
+
+</html>

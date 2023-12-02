@@ -1,0 +1,165 @@
+<!--
+ * @Author: quling
+ * @Date: 2023-11-09 21:20:14
+ * @LastEditors: quling
+ * @LastEditTime: 2023-11-10 15:32:40
+ * @Description: 
+ * @FilePath: \cesium-study\examples\week03.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>场景调整</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/style.css">
+  <link rel="stylesheet" href="../lib/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../lib/css/liMarquee.css">
+  <link rel="stylesheet" href="../lib/css/InfoGrid-skyline.css">
+
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    #Container {
+      background: url("../assets/background.jpg") no-repeat center;
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <!-- <button id="flyHome">全图</button> -->
+    <button id="skyBox">天空盒子-晚霞</button>
+    <button id="earthShow">地图显隐切换</button>
+    <button id="position">获取相机位置</button>
+    <button id="local">定位-展示月亮与太阳视角</button>
+    <button id="moonSunShow">月亮太阳显隐切换</button>
+    <button id="background">替换背景</button>
+  </div>
+  <div id="Container"></div>
+
+  <script type="text/javascript">
+    let viewer = null
+    let scene = null
+    function onload(SuperMap3D) {
+      viewer = new SuperMap3D.Viewer('Container',
+        {
+          contextOptions: {
+            webgl: {
+              alpha: true, // 如果该值为 true，则绘图缓冲区具有一个 Alpha 通道，用于执行 OpenGL 目标 Alpha 操作和与页面合成。如果该值为 false，则没有可用的 alpha 缓冲区。
+            }
+          },
+          // selectionIndicator: false,
+          skyAtmosphere: false, // 球体边缘的大气效果
+        });
+      scene = viewer.scene;
+      // 地球透明度
+      // scene.globe.globeAlpha = 0.3
+      // 是否以太阳为光源照亮地球仪,背光处为黑色
+      scene.globe.enableLighting = true
+    }
+    onload(SuperMap3D);
+
+    // 天空盒子
+    $("#skyBox").click(function () {
+      cloudyBox = new SuperMap3D.SkyBox({
+        sources: {
+          // positiveX: '../assets/background.jpg',
+          // negativeX: '../assets/background.jpg',
+          // positiveY: '../assets/background.jpg',
+          // negativeY: '../assets/background.jpg',
+          // positiveZ: '../assets/background.jpg',
+          // negativeZ: '../assets/background.jpg'
+
+          positiveX: '../assets/SkyBox/Right.jpg',
+          negativeX: '../assets/SkyBox/Left.jpg',
+          positiveY: '../assets/SkyBox/Front.jpg',
+          negativeY: '../assets/SkyBox/Back.jpg',
+          positiveZ: '../assets/SkyBox/Up.jpg',
+          negativeZ: '../assets/SkyBox/Down.jpg'
+        }
+      });
+      cloudyBox.show = true;
+      scene.skyBox = cloudyBox;
+      scene.camera.setView({
+        destination: new SuperMap3D.Cartesian3(-2141928.463803975, 4391705.204806254, 4099531.6497787824),
+        orientation: {
+          heading: 6.268809805519916,
+          pitch: 0.05347051142348236,
+          roll: 6.283185307179576
+        }
+      });
+    })
+
+    // 地球显隐
+    $("#earthShow").click(() => {
+      // 是否显示地球,"星空"盒子也会跟着被隐藏
+      scene.globe.show = !scene.globe.show
+    })
+
+    // 全图
+    $("#flyHome").click(function () {
+      if (viewer) {
+        const camera = viewer.scene.camera
+        // 飞行持续2秒
+        camera.flyHome(2)
+      }
+    })
+
+    // 定位到合适视角展示月亮与太阳
+    $("#local").click(() => {
+      scene.camera.setView({
+        destination: new SuperMap3D.Cartesian3(-6373547.621629307, -23215833.132818207, 7443592.074109638)
+      });
+    })
+
+    // 月亮太阳显隐切换
+    $("#moonSunShow").click(() => {
+      if (scene.moon) {
+        scene.moon.show = !scene.moon.show
+      } else {
+        scene.moon = new SuperMap3D.Moon({ show: true })
+      }
+      if (scene.sun) {
+        scene.sun.show = !scene.sun.show
+
+      } else {
+        scene.sun = new SuperMap3D.Sun({ show: true });
+      }
+    })
+
+    $("#position").click(() => {
+      console.log(scene.camera);
+    })
+
+    // 替换背景
+    $("#background").click(() => {
+      // 背景颜色,仅在没有天空盒时才可见，即 Scene#skyBox 未定义。
+      scene.skyBox.show = false
+      scene.backgroundColor = new SuperMap3D.Color(0, 0, 0, 0)
+    })
+  </script>
+</body>
+
+</html>

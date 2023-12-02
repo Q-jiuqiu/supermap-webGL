@@ -1,0 +1,241 @@
+<!--
+ * @Author: quling
+ * @Date: 2023-11-13 20:48:17
+ * @LastEditors: quling
+ * @LastEditTime: 2023-11-30 20:14:39
+ * @Description: 
+ * @FilePath: \webgis-3d-learning-quling\examples\week04.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge,chrome=1" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no" />
+  <title>数据加载</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/style.css">
+  <link rel="stylesheet" href="../lib/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../lib/css/liMarquee.css">
+  <link rel="stylesheet" href="../lib/css/InfoGrid-skyline.css">
+
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="Container"></div>
+  <div class="operation">
+    <button id="addScene">添加场景</button>
+    <button id="addS3M">三维切片缓存</button>
+    <button id="addKML">KML数据</button>
+    <button id="addTin">地形数据</button>
+    <button id="addImage">影像数据</button>
+    <button id="addVector1">矢量数据-addS3MTilesLayerByScp</button>
+    <button id="addVector2">矢量数据-open</button>
+    <button id="addArcGIS">加载Arcgis服务</button>
+    <!-- <button id="position">获取相机视角</button> -->
+  </div>
+
+  <script type="text/javascript">
+    let viewer = null
+    let scene = null
+    function onload(SuperMap3D) {
+      viewer = new SuperMap3D.Viewer('Container');
+      scene = viewer.scene;
+    }
+    onload(SuperMap3D);
+
+    // 获取当前位置
+    $("#position").click(() => {
+      console.log(scene.camera);
+    })
+
+    /**
+     * @description: 添加场景
+     * @return {*}
+     */
+    $("#addScene").click(() => {
+      // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
+      const url = "https://www.supermapol.com/realspace/services/3D-CBD-2/rest/realspace"
+      var promise = scene.open(url, "CBD", {
+        // autoSetView: false // 否自动定位到场景,默认为true
+      });
+
+      SuperMap3D.when(promise, function (layers) {
+        console.log(layers);
+      }, function (e) {
+        console.log("失败", e);
+      });
+    })
+
+    /**
+     * @description: 三维切片缓存
+     * @return {*}
+     */
+    $("#addS3M").click(() => {
+      if (scene) {
+        // url一直到图层对应config资源节点下添加s3m缓存
+        const url = "http://www.supermapol.com/realspace/services/3D-osgb/rest/realspace/datas/jinjiang_Compressed-test/config"
+        const widget = viewer.widget
+        try {
+          const promise = scene.addS3MTilesLayerByScp(url, { name: "jinjiang" })
+          SuperMap3D.when(promise, (layer) => {
+            // scene.camera.flyTo(layer)
+            scene.camera.flyTo({
+              // 笛卡尔坐标
+              // destination: new SuperMap3D.Cartesian3(-2659062.0936156497, 3577593.859136284, 4547411.619780437)
+              // fromDegrees 将以度为单位的经、纬度数值转换为笛卡尔坐标
+              destination: SuperMap3D.Cartesian3.fromDegrees(118.54909017414182, 24.80259473610606, 105.40531821331771),
+              orientation: {
+                heading: 6.109613004885443,
+                pitch: -0.48783918611301136,
+                roll: 6.283185307179586
+              }
+            }, (e) => {
+              // 发生渲染循环错误
+              if (widget._showRenderLoopErrors) {
+                var title = '渲染时发生错误，已停止渲染。';
+                // 向用户显示一个错误面板，其中包含标题和更长的错误消息，可以使用“确定”按钮将其关闭
+                widget.showErrorPanel(title, undefined, e);
+              }
+            })
+          })
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    })
+
+    /**
+     * @description: 添加地形数据
+     * @return {*}
+     */
+    $("#addTin").click(() => {
+      if (scene) {
+        try {
+          // 地形服务访问地址 DatasetDEM为地形图层名称
+          const url = "http://www.supermapol.com/realspace/services/3D-dixingyingxiang/rest/realspace/datas/DatasetDEM"
+          const terrainProvider = new SuperMap3D.SuperMapTerrainProvider({
+            url,
+            isSct: true, // 地形服务源自SuperMap iServer发布时需设置isSct为true
+            invisibility: true // 是否开启设置地形显隐的功能
+          })
+          scene.terrainProvider = terrainProvider
+          viewer.scene.camera.flyTo({
+            destination: new SuperMap3D.Cartesian3(-1206939.1925299785, 5337998.241228442, 3286279.2424502545),
+            orientation: {
+              heading: 1.4059101895600987,
+              pitch: -0.20917672793046682,
+              roll: 2.708944180085382e-13
+            }
+          });
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    })
+
+    /**
+     * @description: 添加影像数据
+     * @return {*}
+     */
+    $("#addImage").click(() => {
+      if (scene) {
+        // 获取将在地球上渲染的影像图层集合
+        const imageryLayers = scene.imageryLayers
+        // MosaicResult为影像图层名称
+        const url = "http://www.supermapol.com/realspace/services/3D-dixingyingxiang/rest/realspace/datas/MosaicResult"
+        const imageryProvider = new SuperMap3D.SuperMapImageryProvider({
+          url
+        })
+        const layer = imageryLayers.addImageryProvider(imageryProvider)
+        console.log(layer);
+        viewer.flyTo(layer)
+      }
+    })
+
+    /**
+     * @description: 添加KML数据
+     * @return {*}
+     */
+    $("#addKML").click(() => {
+      if (viewer) {
+        // 数据源集合
+        const dataSources = viewer.dataSources
+        if (dataSources) {
+          // 添加数据源
+          dataSources.add(SuperMap3D.KmlDataSource.load("../SampleData/kml/model.kml", {
+            camera: viewer.scene.camera,
+            canvas: viewer.scene.canvas
+          })).then(function (dataSources) {
+            viewer.clock.clockRange = SuperMap3D.ClockRange.CLAMPED;
+          })
+        }
+      }
+    })
+
+    /**
+     * @description: 添加矢量-addS3MTilesLayerByScp
+     * @return {*}
+     */
+    $("#addVector1").click(() => {
+      const url = "https://www.supermapol.com/realspace/services/3D-CQmodel_wireframe_2000-2/rest/realspace/datas/wireFrame/config"
+      const promise = scene.addS3MTilesLayerByScp(url, { name: "wireFrame" })
+      scene.camera.flyTo({
+        // 笛卡尔坐标
+        destination: new SuperMap3D.Cartesian3(-1597547.8078077987, 5326323.1627879795, 3113490.64764293),
+      })
+      promise.then(layer => {
+        //设置图层的阴影模式
+        layer.lodRangeScale = 1;
+        const initialColor = "rgb(255,255,255)";
+        layer.style3D.lineColor = SuperMap3D.Color.fromCssColorString(initialColor);
+        layer.style3D.fillStyle = SuperMap3D.FillStyle.Fill_And_WireFrame;
+        layer.wireFrameMode = SuperMap3D.WireFrameType.EffectOutline; // 特效边框线
+      })
+    })
+
+    /**
+     * @description: 添加矢量-open
+     * @return {*}
+     */
+    $("#addVector2").click(() => {
+      const url = "http://www.supermapol.com/realspace/services/3D-CQmodel_wireframe_2000-2/rest/realspace"
+      scene.open(url);
+    })
+
+    /**
+     * @description: 加载Arcgis服务
+     * @return {*}
+     */
+    $("#addArcGIS").click(async () => {
+      //ArcGIS卫星图层
+      const arcgis = new SuperMap3D.ArcGisMapServerImageryProvider({
+        url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+      })
+      const layer = await viewer.imageryLayers.addImageryProvider(arcgis)
+      console.log(layer);
+      // viewer.flyTo(layer)
+    })
+  </script>
+</body>
+
+</html>
