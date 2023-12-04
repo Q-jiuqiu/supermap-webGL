@@ -1,0 +1,101 @@
+<!--
+ * @Author: quling
+ * @Date: 2023-11-09 21:20:14
+ * @LastEditors: quling
+ * @LastEditTime: 2023-12-04 22:27:44
+ * @Description: 
+ * @FilePath: \webGL\examples\4_Draw.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>对象绘制</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/style.css">
+  <link rel="stylesheet" href="../lib/css/font-awesome.min.css">
+  <link rel="stylesheet" href="../lib/css/liMarquee.css">
+  <link rel="stylesheet" href="../lib/css/InfoGrid-skyline.css">
+
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    #Container {
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 设置光标样式 */
+    .drawCur {
+      cursor: url("../assets/cur/draw.cur"), auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="point" class="button black">绘制点</button>
+    <button id="line" class="button black">绘制线</button>
+    <button id="polygon" class="button black">绘制面</button>
+    <button id="marker" class="button black">绘制地标</button>
+    <button id="clear" class="button black">清除所有</button>
+  </div>
+  <div id="Container">
+  </div>
+
+  <script type="text/javascript">
+    let viewer = null
+    let scene = null
+    function onload(SuperMap3D) {
+      viewer = new SuperMap3D.Viewer('Container');
+      scene = viewer.scene;
+
+      // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
+      const url = "https://www.supermapol.com/realspace/services/3D-CBD-2/rest/realspace"
+      var promise = scene.open(url, "CBD");
+
+      SuperMap3D.when(promise, function (layers) {
+        console.log(layers);
+      }, function (e) {
+        console.log("失败", e);
+      });
+    }
+    onload(SuperMap3D);
+
+    /**
+     * @description: 绘制点
+     * @return {*}
+     */
+    $("#point").click(() => {
+      if (viewer) {
+        // SuperMap3D.ClampMode.Ground:贴地模式
+        const handler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Point, SuperMap3D.ClampMode.Ground)
+        handler.activate()
+      } else {
+        console.log("未获取到viewer对象");
+      }
+    })
+
+  </script>
+</body>
+
+</html>
