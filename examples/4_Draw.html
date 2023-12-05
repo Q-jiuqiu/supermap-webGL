@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-04 22:27:44
+ * @LastEditTime: 2023-12-05 22:58:16
  * @Description: 
  * @FilePath: \webGL\examples\4_Draw.html
 -->
@@ -81,19 +81,40 @@
     }
     onload(SuperMap3D);
 
+    let pointHandler = null
+
     /**
      * @description: 绘制点
      * @return {*}
      */
     $("#point").click(() => {
+      console.log(pointHandler);
+      if (pointHandler) {
+        clearPoint()
+        return
+      }
       if (viewer) {
         // SuperMap3D.ClampMode.Ground:贴地模式
-        const handler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Point, SuperMap3D.ClampMode.Ground)
-        handler.activate()
+        pointHandler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Point, SuperMap3D.ClampMode.Ground)
+        // 先增加监听事件再激活
+        pointHandler.activeEvt.addEventListener((isActive) => {
+          console.log(isActive);
+        });
+        pointHandler.activate()
       } else {
         console.log("未获取到viewer对象");
       }
     })
+
+    $("#clear").click(() => {
+      clearPoint()
+    })
+
+    function clearPoint() {
+      pointHandler.clear();
+      pointHandler.deactivate()
+      pointHandler = null
+    }
 
   </script>
 </body>
