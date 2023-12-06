@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-05 22:58:16
+ * @LastEditTime: 2023-12-06 22:24:25
  * @Description: 
  * @FilePath: \webGL\examples\4_Draw.html
 -->
@@ -16,12 +16,7 @@
   <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
   <link rel="stylesheet" href="../lib/css/pretty.css">
   <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
-  <link rel="stylesheet" href="../lib/css/pretty.css">
-  <link rel="stylesheet" href="../lib/css/style.css">
-  <link rel="stylesheet" href="../lib/css/font-awesome.min.css">
-  <link rel="stylesheet" href="../lib/css/liMarquee.css">
-  <link rel="stylesheet" href="../lib/css/InfoGrid-skyline.css">
-
+  <script src="../lib/js/tooltip.js"></script>
   <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
   <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
   <script type="text/javascript" src="../lib/js/config.js"></script>
@@ -46,18 +41,25 @@
 
     /* 设置光标样式 */
     .drawCur {
-      cursor: url("../assets/cur/draw.cur"), auto;
+      cursor: url("../assets/cur/draw.cur"), auto !important;
     }
   </style>
 </head>
 
 <body>
   <div class="operation">
+    <select id="entityOptions" class="show-tick form-control">
+      <option selected value="贴地模式">贴地模式</option>
+      <option value="栅格化模式">栅格化模式</option>
+      <option value="贴对象模式">贴对象模式</option>
+      <option value="空间模式">空间模式</option>
+    </select>
     <button id="point" class="button black">绘制点</button>
     <button id="line" class="button black">绘制线</button>
     <button id="polygon" class="button black">绘制面</button>
     <button id="marker" class="button black">绘制地标</button>
-    <button id="clear" class="button black">清除所有</button>
+    <button id="box" class="button black">绘制盒子</button>
+    <label><input type="checkbox" id="checkbox" checked> 绘制前是否清空 </label>
   </div>
   <div id="Container">
   </div>
@@ -65,9 +67,18 @@
   <script type="text/javascript">
     let viewer = null
     let scene = null
+    let tooltip = null
+    // SuperMap3D.ClampMode.Ground:贴地模式
+    let ClampMode = SuperMap3D.ClampMode.Ground
+    let isClear = true
+
     function onload(SuperMap3D) {
-      viewer = new SuperMap3D.Viewer('Container');
+      viewer = new SuperMap3D.Viewer('Container', {
+        // 取消信息提示框
+        infoBox: false,
+      });
       scene = viewer.scene;
+      tooltip = createTooltip(document.body);
 
       // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
       const url = "https://www.supermapol.com/realspace/services/3D-CBD-2/rest/realspace"
@@ -81,39 +92,128 @@
     }
     onload(SuperMap3D);
 
-    let pointHandler = null
+    let drawerHandler = null
 
+    const drawerMode = {
+      point: SuperMap3D.DrawMode.Point,
+      line: SuperMap3D.DrawMode.Line,
+      polygon: SuperMap3D.DrawMode.Polygon,
+      marker: SuperMap3D.DrawMode.Marker,
+      box: SuperMap3D.DrawMode.Box
+    }
     /**
      * @description: 绘制点
      * @return {*}
      */
     $("#point").click(() => {
-      console.log(pointHandler);
-      if (pointHandler) {
-        clearPoint()
-        return
-      }
-      if (viewer) {
-        // SuperMap3D.ClampMode.Ground:贴地模式
-        pointHandler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Point, SuperMap3D.ClampMode.Ground)
-        // 先增加监听事件再激活
-        pointHandler.activeEvt.addEventListener((isActive) => {
-          console.log(isActive);
-        });
-        pointHandler.activate()
-      } else {
-        console.log("未获取到viewer对象");
-      }
+      createDrawerHandler(drawerMode['point'], "点击绘制点")
+    })
+
+    /**
+     * @description: 绘制线
+     * @return {*}
+     */
+    $("#line").click(() => {
+      createDrawerHandler(drawerMode['line'], "点击绘制线,右击结束")
+    })
+
+    /**
+     * @description: 绘制面
+     * @return {*}
+     */
+    $("#polygon").click(() => {
+      createDrawerHandler(drawerMode['polygon'], "点击绘制面,右击结束")
+    })
+
+    /**
+     * @description: 绘制图标
+     * @return {*}
+     */
+    $("#marker").click(() => {
+      createDrawerHandler(drawerMode['marker'], "点击绘制图标,右击结束")
+    })
+
+    /**
+     * @description: 绘制盒子
+     * @return {*}
+     */
+     $("#box").click(() => {
+      createDrawerHandler(drawerMode['box'], "点击绘制盒子,右击结束")
+    })
+
+    const chooseItems = {
+      "贴地模式": SuperMap3D.ClampMode.Ground,
+      "栅格化模式": SuperMap3D.ClampMode.Raster,
+      "贴对象模式": SuperMap3D.ClampMode.S3mModel,
+      "空间模式": SuperMap3D.ClampMode.Space,
+    }
+
+    $("#entityOptions").change(function () {
+      const value = $(this).val();
+      ClampMode = chooseItems[value]
+    });
+
+    $("#checkbox").change(function () {
+      isClear = $(this).is(':checked')
     })
 
     $("#clear").click(() => {
-      clearPoint()
+      clearDrawer()
     })
 
-    function clearPoint() {
-      pointHandler.clear();
-      pointHandler.deactivate()
-      pointHandler = null
+    let drawerHandlerList = []
+    /**
+     * @description: 创建绘制对象
+     * @param {*} mode 绘制模式，包含点、线、面、图标
+     * @param {*} tips 提示文字
+     */
+    function createDrawerHandler(mode, tips) {
+      if (drawerHandler && isClear) {
+        clearDrawer()
+        drawerHandlerList.forEach(handler => {
+          handler.clear();
+          handler.deactivate()
+        })
+
+        drawerHandlerList = []
+      }
+      if (viewer) {
+        drawerHandler = new SuperMap3D.DrawHandler(viewer, mode, ClampMode)
+
+        // 监听handler是否激活事件
+        drawerHandler.activeEvt.addEventListener((isActive) => {
+          // handler是否激活
+          if (isActive) {
+            viewer._element.style.cursor = ""
+            // 此版本的supermap3d-viewer标签上有drawCur的行内样式
+            $(".supermap3d-viewer").addClass("drawCur")
+          } else {
+            $(".supermap3d-viewer").removeClass("drawCur")
+          }
+        });
+
+        // 监听handler移动事件,返回鼠标在屏幕的位置
+        drawerHandler.movingEvt.addEventListener((windowPosition) => {
+          tooltip.showAt(windowPosition, `<p>${tips}</p>`);
+        })
+
+        // 监听绘制是否完成,获取绘制结果
+        drawerHandler.drawEvt.addEventListener((result) => {
+          tooltip.setVisible(false);
+          drawerHandlerList.push(drawerHandler)
+        })
+
+        drawerHandler.activate()
+      } else {
+        console.log("未获取到viewer对象");
+      }
+    }
+
+
+    function clearDrawer() {
+      drawerHandler.clear();
+      drawerHandler.deactivate()
+      drawerHandler = null
     }
 
   </script>
