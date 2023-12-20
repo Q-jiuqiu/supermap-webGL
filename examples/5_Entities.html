@@ -1,0 +1,235 @@
+<!--
+ * @Author: quling
+ * @Date: 2023-11-09 21:20:14
+ * @LastEditors: quling
+ * @LastEditTime: 2023-12-20 17:23:06
+ * @Description: 
+ * @FilePath: \supermap-webGL\examples\5_Entities.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entity操作</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    #Container {
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="addEntity" class="button black">添加Entity</button>
+    <button id="removeEntity" class="button black">移除单个Entity</button>
+    <button id="addEntities" class="button black">批量添加Entity</button>
+  </div>
+  <div id="Container"></div>
+
+  <script type="text/javascript">
+    let viewer = null
+    let scene = null
+
+    function onload(SuperMap3D) {
+      viewer = new SuperMap3D.Viewer('Container', {
+        // 取消信息提示框
+        infoBox: false,
+      });
+      scene = viewer.scene;
+      // 取消深度测试  - 如果布告板/折线/标签等针对地形表面开启深度检测，则不会被遮挡。
+      scene.globe.depthTestAgainstTerrain = false;
+    }
+    onload(SuperMap3D);
+
+    $("#addEntity").click(() => {
+
+      const entity = new SuperMap3D.Entity({
+        id: "test",
+        show: true,
+        description: "描述",
+        position: SuperMap3D.Cartesian3.fromDegrees(117, 32, 500),
+        polyline: new SuperMap3D.PolylineGraphics({
+          positions: SuperMap3D.Cartesian3.fromDegreesArrayHeights([101, 40, 50000, 119, 40, 50000]),
+          width: 100,
+          // material: new SuperMap3D.PolylineOutlineMaterialProperty({
+          //   color: SuperMap3D.Color.RED.withAlpha(0.9),
+          //   outlineColor: SuperMap3D.Color.ALICEBLUE.withAlpha(0.9),
+          //   outlineWidth: 5
+          // })
+          material: new SuperMap3D.PolylineGlowMaterialProperty({
+            color: SuperMap3D.Color.CHARTREUSE,
+            glowPower: 0.25
+          })
+        })
+      })
+      console.log(entity);
+      const point = viewer.entities.add(entity)
+      viewer.flyTo(point);
+    })
+
+    $("#removeEntity").click(() => {
+      // 先通过id获取Entity
+      const pointEntity = viewer.entities.getById('test')
+      if (pointEntity) {
+        // 删除指定Entity
+        viewer.entities.remove(pointEntity)
+      }
+      // 移除指定id的Entity
+      viewer.entities.removeById("test")
+    })
+
+    $("#addEntities").click(() => {
+      // label
+      const entity1 = new SuperMap3D.Entity({
+        id: 'label',
+        position: SuperMap3D.Cartesian3.fromDegrees(117, 29, 500),
+        label: {
+          text: "SuperMap",
+          font: "32px sans-serif",
+          show: true,
+          style: SuperMap3D.LabelStyle.FILL_AND_OUTLINE,
+          outlineColor: SuperMap3D.Color.BLACK,
+          outlineWidth: 10,
+          showBackground: true,
+          backgroundColor: new SuperMap3D.Color(165, 165, 165, 0.8),
+          fillColor: SuperMap3D.Color.ALICEBLUE,
+          // disableDepthTestDistance: Number.POSITIVE_INFINITY // 返回正无穷大 - 取消深度测试
+        }
+      })
+
+      // wall
+      const entity2 = new SuperMap3D.Entity({
+        id: 'wall',
+        position: SuperMap3D.Cartesian3.fromDegrees(117, 32, 500),
+        wall: {
+          positions: SuperMap3D.Cartesian3.fromDegreesArrayHeights([101, 40, 50000, 119, 40, 50000]),
+          outlineWidth: 40,
+          material: new SuperMap3D.ImageMaterialProperty({
+            image: '../assets/wall.jpg'
+          }),
+        },
+      })
+
+      // 点
+      const entity3 = new SuperMap3D.Entity({
+        id: "test",
+        show: true,
+        description: "描述",
+        position: SuperMap3D.Cartesian3.fromDegrees(110, 32, 500),
+        point: new SuperMap3D.PointGraphics({
+          pixelSize: 5,
+          fillColor: SuperMap3D.Color.RED,
+          // color: SuperMap3D.Color.RED,
+          outlineColor: SuperMap3D.Color.YELLOW,
+          // outlinewidth: 2.0,
+          outlineWidth: 5,
+          outlineColor: SuperMap3D.Color.YELLOW,
+          disableDepthTestDistance: Number.POSITIVE_INFINITY // 返回正无穷大 - 取消深度测试
+        })
+      })
+      const entitiesList = [entity1, entity2, entity3]
+
+      entitiesList.forEach(entity => {
+        viewer.entities.add(entity)
+      });
+    })
+
+
+    function computeCircle(radius) {
+      // 计算一个圆形的顶点位置
+      var positions = [];
+      // 180 半圆 / 360 整圆
+      for (var i = 0; i < 180; i++) {
+        var radians = SuperMap3D.Math.toRadians(i);
+        positions.push(new SuperMap3D.Cartesian2(radius * Math.cos(radians), radius * Math.sin(radians)));
+      }
+      return positions;
+    }
+
+    function computeTriangle(radius) {
+      // 计算三角形的顶点位置
+      var jiaodu = 60;
+      var hudu = SuperMap3D.Math.toRadians(jiaodu);
+      var positions = [];
+      positions.push(new SuperMap3D.Cartesian2(-radius * Math.cos(hudu), -radius * Math.sin(hudu) / 2));
+      positions.push(new SuperMap3D.Cartesian2(radius * Math.cos(hudu), -radius * Math.sin(hudu) / 2));
+      positions.push(new SuperMap3D.Cartesian2(0, radius * Math.sin(hudu) / 2));
+      return positions;
+    }
+
+    function computeqiang(radius) {
+      // 计算墙的顶点位置
+      var positions = [];
+      positions.push(new SuperMap3D.Cartesian2(-radius / 2, 0));
+      positions.push(new SuperMap3D.Cartesian2(radius / 2, 0));
+      positions.push(new SuperMap3D.Cartesian2(radius / 2, radius * 10));
+      positions.push(new SuperMap3D.Cartesian2(-radius / 2, radius * 10));
+      return positions;
+    }
+
+    // 多段线柱体对象
+    viewer.entities.add({
+      id: "polylineVolume1",
+      polylineVolume: {
+        positions: SuperMap3D.Cartesian3.fromDegreesArray([117.0, 32.0, 120.0, 36.0, 130.0, 36.0]),
+        material: SuperMap3D.Color.YELLOW,
+        shape: computeCircle(6000.0),
+      }
+
+    });
+
+
+    viewer.entities.add({
+      id: "polylineVolume2",
+      polylineVolume: {
+        positions: SuperMap3D.Cartesian3.fromDegreesArray([117.0, 33.0, 120.0, 37.0, 130.0, 37.0]),
+        material: new SuperMap3D.ImageMaterialProperty({
+          image: '../assets/wall.jpg',
+          repeat: new SuperMap3D.Cartesian2(200.0, 1.0),
+        }),
+        shape: computeTriangle(6000.0),
+      }
+    });
+
+    viewer.entities.add({
+      id: "polylineVolume3",
+      polylineVolume: {
+        positions: SuperMap3D.Cartesian3.fromDegreesArray([118.0, 33.0, 118.2, 33]),
+        material: new SuperMap3D.ImageMaterialProperty({
+          image: '../assets/wall.jpg',
+          repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
+        }),
+        shape: computeqiang(6000.0),
+      }
+    });
+
+    viewer.flyTo(viewer.entities.getById("polylineVolume3"));
+
+
+
+  </script>
+</body>
+
+</html>

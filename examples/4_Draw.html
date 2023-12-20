@@ -2,9 +2,9 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-06 22:24:25
+ * @LastEditTime: 2023-12-14 09:50:58
  * @Description: 
- * @FilePath: \webGL\examples\4_Draw.html
+ * @FilePath: \supermap-webGL\examples\4_Draw.html
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -137,7 +137,7 @@
      * @description: 绘制盒子
      * @return {*}
      */
-     $("#box").click(() => {
+    $("#box").click(() => {
       createDrawerHandler(drawerMode['box'], "点击绘制盒子,右击结束")
     })
 
@@ -189,6 +189,8 @@
             $(".supermap3d-viewer").addClass("drawCur")
           } else {
             $(".supermap3d-viewer").removeClass("drawCur")
+            //  可以连续绘制,但是上一次绘制的结果会被清楚
+            // drawerHandler.activate()
           }
         });
 
