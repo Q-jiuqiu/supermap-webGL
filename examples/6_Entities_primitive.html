@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-21 11:31:19
+ * @LastEditTime: 2023-12-22 14:29:40
  * @Description: 
  * @FilePath: \supermap-webGL\examples\6_Entities_primitive.html
 -->
@@ -49,6 +49,7 @@
 <body>
   <div class="operation">
     <button id="line" class="button black">绘制线</button>
+    <!-- <button id="locateLayer" class="button black">定位到服务</button> -->
   </div>
   <div id="Container"></div>
 
@@ -57,6 +58,9 @@
     let scene = null
     let camera = null
     let tooltip = null
+    // 是否绘制线
+    let isDraw = false
+    let layer = null
 
     function onload(SuperMap3D) {
       viewer = new SuperMap3D.Viewer('Container', {
@@ -69,57 +73,61 @@
 
       // 取消深度测试  - 如果布告板/折线/标签等针对地形表面开启深度检测，则不会被遮挡。
       scene.globe.depthTestAgainstTerrain = false;
+
+      // 选中实体发生变化
+      // viewer.selectedEntityChanged.addEventListener((selectedEntity) => {
+      //   // 选中实体 viewer.selectedEntity
+      //   console.log("selectedEntityChanged", selectedEntity, viewer.selectedEntity);
+
+      //   if (selectedEntity.polylineVolume) {
+      //     selectedEntity.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
+      //       image: '../assets/wall.jpg',
+      //       repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
+      //     })
+      //     console.log(selectedEntity);
+      //   }
+      // })
+
+      const handler = new SuperMap3D.ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction((movement) => {
+        const screenPosition = movement.position
+        const pick = viewer.scene.pick(screenPosition); // 场景拾取，返回在场景中该窗口位置对应的第一个图元对象，如果该位置没有任何物体则返回undefined
+        console.log("pick", pick, SuperMap3D.defined(pick));
+        if (!isDraw) {
+          if (SuperMap3D.defined(pick) && pick.id) {
+            if (pick.id.polylineVolume) {
+              pick.id.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
+                image: '../assets/wall.jpg',
+                repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
+              })
+            } else if (pick.primitive) {
+              pick.primitive.appearance = new SuperMap3D.EllipsoidSurfaceAppearance({
+                material: SuperMap3D.Material.fromType('Checkerboard')
+              })
+            }
+          }
+        }
+      }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK);
+
+      // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
+      const url = "https://www.supermapol.com/realspace/services/3D-CBD-2/rest/realspace"
+      const promise = scene.open(url, "CBD", {
+        autoSetView: false // 否自动定位到场景,默认为true
+      });
+
+      SuperMap3D.when(promise, function (layers) {
+        if (layers[0]) { layer = layers[0] }
+      }, function (e) {
+        console.log("失败", e);
+      });
     }
     onload(SuperMap3D);
-
-    // function computeCircle(radius) {
-    //   // 计算一个圆形的顶点位置
-    //   var positions = [];
-    //   // 180 半圆 / 360 整圆
-    //   for (var i = 0; i < 180; i++) {
-    //     var radians = SuperMap3D.Math.toRadians(i);
-    //     positions.push(new SuperMap3D.Cartesian2(radius * Math.cos(radians), radius * Math.sin(radians)));
-    //   }
-    //   return positions;
-    // }
-
-    // // 多段线柱体对象
-    // viewer.entities.add({
-    //   id: "polylineVolume1",
-    //   polylineVolume: {
-    //     positions: SuperMap3D.Cartesian3.fromDegreesArray([117.0, 32.0, 120.0, 36.0, 130.0, 36.0]),
-    //     material: SuperMap3D.Color.YELLOW,
-    //     shape: computeCircle(6000.0),
-    //   }
-
-    // });
-
-    // viewer.flyTo(viewer.entities);
-
-    // // 添加primitive对象
-    // const instance = new SuperMap3D.GeometryInstance({
-    //   geometry: new SuperMap3D.EllipseGeometry({
-    //     center: SuperMap3D.Cartesian3.fromDegrees(117.0, 32.0),
-    //     semiMinorAxis: 500000.0,
-    //     semiMajorAxis: 1000000.0,
-    //     rotation: SuperMap3D.Math.PI_OVER_FOUR,
-    //     vertexFormat: SuperMap3D.VertexFormat.POSITION_AND_ST
-    //   }),
-    //   id: 'primitive'
-    // });
-
-    // const ellipsePrimitive = new SuperMap3D.Primitive({
-    //   geometryInstances: instance,
-    //   appearance: new SuperMap3D.EllipsoidSurfaceAppearance({
-    //     material: SuperMap3D.Material.fromType('Checkerboard')
-    //   })
-    // })
-    // scene.primitives.add(ellipsePrimitive)
 
     let entity = null
     $("#line").click(() => {
       const positions = []
       let poly = null
+      isDraw = true
       $(".supermap3d-viewer").addClass("drawCur")
 
       let handler = new SuperMap3D.ScreenSpaceEventHandler(viewer.canvas)
@@ -152,8 +160,9 @@
 
       poly = new polyLineEntity(positions);
 
-      // 监听鼠标左键事件-绘制点
+      // 监听鼠标左键事件-绘制线
       handler.setInputAction((movement) => {
+        console.log("绘制线");
         // 将屏幕坐标转化为笛卡尔坐标
         const cartesian = viewer.scene.pickPosition(movement.position);
         positions.push(cartesian)
@@ -185,6 +194,7 @@
         handler = handler && handler.destroy()
         handleEdit(entity)
         $(".supermap3d-viewer").removeClass("drawCur")
+        isDraw = false
       }, SuperMap3D.ScreenSpaceEventType.LEFT_DOUBLE_CLICK)
     })
 
@@ -207,6 +217,57 @@
         editHandler.activate();
       }
     }
+
+    function computeqiang(radius) {
+      // 计算墙的顶点位置
+      var positions = [];
+      positions.push(new SuperMap3D.Cartesian2(-radius / 2, 0));
+      positions.push(new SuperMap3D.Cartesian2(radius / 2, 0));
+      positions.push(new SuperMap3D.Cartesian2(radius / 2, radius * 10));
+      positions.push(new SuperMap3D.Cartesian2(-radius / 2, radius * 10));
+      return positions;
+    }
+    // 添加一堵墙
+    const polylineVolume3 = {
+      id: "polylineVolume3",
+      polylineVolume: {
+        positions: SuperMap3D.Cartesian3.fromDegreesArray([118.0, 33.0, 118.2, 33]),
+        material: SuperMap3D.Color.YELLOW,
+        shape: computeqiang(6000.0),
+      }
+    }
+    viewer.entities.add(polylineVolume3);
+
+
+    // 添加primitive对象-椭圆形-并增加一个棋盘格材质
+    // 创建实体
+    const instance = new SuperMap3D.GeometryInstance({
+      // 创建几何体
+      geometry: new SuperMap3D.EllipseGeometry({
+        center: SuperMap3D.Cartesian3.fromDegrees(117.0, 32.0),
+        semiMinorAxis: 500000.0,
+        semiMajorAxis: 1000000.0,
+        rotation: SuperMap3D.Math.PI_OVER_FOUR,
+        vertexFormat: SuperMap3D.VertexFormat.POSITION_AND_ST
+      }),
+      id: 'primitive',
+      attributes: {
+        color: SuperMap3D.ColorGeometryInstanceAttribute.fromColor(SuperMap3D.Color.AQUA)
+      }
+    });
+    // 创建图元
+    const ellipsePrimitive = new SuperMap3D.Primitive({
+      geometryInstances: instance,
+      appearance: new SuperMap3D.PerInstanceColorAppearance()
+    })
+    scene.primitives.add(ellipsePrimitive)
+    viewer.flyTo(viewer.entities.getById("polylineVolume3"));
+
+
+    // 定位到服务
+    $("#locateLayer").click(() => {
+      viewer.flyTo(layer);
+    })
   </script>
 </body>
 
