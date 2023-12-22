@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-22 14:36:39
+ * @LastEditTime: 2023-12-22 14:39:21
  * @Description: 
  * @FilePath: \supermap-webGL\examples\6_Entities_primitive.html
 -->
@@ -79,12 +79,17 @@
       //   // 选中实体 viewer.selectedEntity
       //   console.log("selectedEntityChanged", selectedEntity, viewer.selectedEntity);
 
-      //   if (selectedEntity.polylineVolume) {
-      //     selectedEntity.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
-      //       image: '../assets/wall.jpg',
-      //       repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
-      //     })
-      //     console.log(selectedEntity);
+      //   if (SuperMap3D.defined(selectedEntity)) {
+      //     if (selectedEntity.polylineVolume) {
+      //       selectedEntity.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
+      //         image: '../assets/wall.jpg',
+      //         repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
+      //       })
+      //     } else {
+      //       selectedEntity.primitive.appearance = new SuperMap3D.EllipsoidSurfaceAppearance({
+      //         material: SuperMap3D.Material.fromType('Checkerboard')
+      //       })
+      //     }
       //   }
       // })
 
