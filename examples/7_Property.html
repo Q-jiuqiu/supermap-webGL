@@ -1,10 +1,10 @@
 <!--
  * @Author: quling
- * @Date: 2023-12-26 21:00:55
+ * @Date: 2023-12-29 09:29:13
  * @LastEditors: quling
- * @LastEditTime: 2023-12-28 22:22:22
+ * @LastEditTime: 2023-12-29 10:25:02
  * @Description: 
- * @FilePath: \webGL\examples\7_Property.html
+ * @FilePath: \supermap-webGL\examples\7_Property.html
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -115,6 +115,19 @@
     $("#SampledProperty").click(() => {
       const property = SampledProperty()
       blueBox.box.dimensions = property;
+
+      // 颜色线性变化
+      const colorProperty = new SuperMap3D.SampledProperty(SuperMap3D.Color);
+      // 当前时间
+      const date = new Date()
+      const start = new Date(date.getTime())
+      // 2s后的时间
+      const stop = new Date(date.getTime() + 2000)
+      colorProperty.addSample(SuperMap3D.JulianDate.fromDate(start),
+        SuperMap3D.Color.DEEPPINK);
+      colorProperty.addSample(SuperMap3D.JulianDate.fromDate(stop),
+        SuperMap3D.Color.AQUAMARINE);
+      blueBox.box.material = new SuperMap3D.ColorMaterialProperty(colorProperty);
     })
     /**
      * @description: 线性变化设置
@@ -145,11 +158,16 @@
       const property = TimeIntervalCollectionProperty()
       blueBox.box.dimensions = property
     })
-    function TimeIntervalCollectionProperty() {
+    /**
+     * @description: 跳跃变化设置--每2s高度增加20000
+     * @param {*} count 设置几次跳跃变化
+     * @return {*}
+     */
+    function TimeIntervalCollectionProperty(count = 5) {
       const timeIntervalProperty = new SuperMap3D.TimeIntervalCollectionProperty(SuperMap3D.Cartesian3);
       // 当前时间
       const date = new Date()
-      for (let i = 0; i < 5; i++) {
+      for (let i = 0; i < count; i++) {
         const start = new Date(date.getTime() + i * 2000)
         // 2s后的时间
         const stop = new Date(date.getTime() + (i + 1) * 2000)
@@ -178,28 +196,29 @@
     // 通过Property实现-CompositeProperty-组合变化
     // 如果出现时间重叠的部分,那个变化后设置,就执行那个
     $("#CompositeProperty").click(() => {
-      const timeIntervalProperty = TimeIntervalCollectionProperty()
-      const sampleProperty = SampledProperty(6)
-
       const composite = new SuperMap3D.CompositeProperty();
-
+      // 设置静态变化Property
       const constantProperty = new SuperMap3D.ConstantProperty(new SuperMap3D.Cartesian3(400000.0, 300000.0, height))
 
       composite.intervals.addInterval(SuperMap3D.TimeInterval.fromIso8601({
-        iso8601: '2023-12-28T00:00:00.00Z/2023-12-29T00:00:00.00Z',
+        iso8601: '2023-12-29T00:00:00.00Z/2023-12-30T00:00:00.00Z',
         data: constantProperty
       }));
 
+      // 设置跳跃变化Property
+      const timeIntervalProperty = TimeIntervalCollectionProperty(2)
+      // 设置线性变化Property
+      const sampleProperty = SampledProperty(3)
+
       // 当前时间
       let date = new Date()
-      // 2s后的时间
-      let date2s = new Date(date.getTime() + 10000)
+      let date_ = new Date(date.getTime() + 4000)
 
       composite.intervals.addInterval(new SuperMap3D.TimeInterval({
         // 间隔的开始时间
         start: SuperMap3D.JulianDate.fromDate(date),
         // 间隔的停止时间
-        stop: SuperMap3D.JulianDate.fromDate(date2s),
+        stop: SuperMap3D.JulianDate.fromDate(date_),
         // start是否包含在间隔中
         isStartIncluded: true,
         // stop是否包含在间隔中
@@ -208,16 +227,15 @@
         data: timeIntervalProperty
       }));
 
-      // 当前时间
-      date = new Date(date.getTime() + 12000)
-      // 2s后的时间
-      date2s = new Date(date.getTime() + 14000)
+      // 时间设置
+      date = new Date(date.getTime() + 6000)
+      date_ = new Date(date.getTime() + 8000)
 
       composite.intervals.addInterval(new SuperMap3D.TimeInterval({
         // 间隔的开始时间
         start: SuperMap3D.JulianDate.fromDate(date),
         // 间隔的停止时间
-        stop: SuperMap3D.JulianDate.fromDate(date2s),
+        stop: SuperMap3D.JulianDate.fromDate(date_),
         // start是否包含在间隔中
         isStartIncluded: true,
         // stop是否包含在间隔中
