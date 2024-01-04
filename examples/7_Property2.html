@@ -35,17 +35,16 @@
 
 <body>
   <div class="operation">
-    <button id="rotateEntity" class="button black">小球旋转</button>
+    <button id="rotateEntity" class="button black">圆形旋转</button>
     <button id="airplane" class="button black">飞机飞行</button>
   </div>
   <div id="Container"></div>
 </body>
 
 <script>
-  // let viewer = null
+  let viewer = null
   let scene = null
   let camera = null
-  let height = 500000.0
   let ellipsoid = null
 
   function onload(SuperMap3D) {
@@ -76,6 +75,33 @@
     // viewer.flyTo(ellipsoid)
   }
   onload(SuperMap3D);
+
+  $("#rotateEntity").click(() => {
+    let _rotation = 0
+    const _amount = 1
+    const ellipse = viewer.entities.add({
+      id: 'ellipse',
+      name: "ellipse",
+      position: SuperMap3D.Cartesian3.fromDegrees(113.9236839, 22.528061),
+      ellipse: {
+        semiMinorAxis: 1000,
+        semiMajorAxis: 1000,
+        material: new SuperMap3D.ImageMaterialProperty({
+          image: "../assets/background.jpg",
+          repeat: new SuperMap3D.Cartesian2(1, 1) // x,y方向重复的次数
+        }),
+        // 设置材质旋转
+        stRotation: new SuperMap3D.CallbackProperty(function () {
+          _rotation += _amount;
+          if (_rotation >= 360 || _rotation <= -360) {
+            _stRotation = 0;
+          }
+          return SuperMap3D.Math.toRadians(_rotation);
+        }, false)
+      }
+    })
+    viewer.flyTo(ellipse)
+  })
 
   // 飞机飞行
   $("#airplane").click(() => {
