@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Property案例</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <script type="text/javascript" src="../lib/js/tooltip.js"></script>
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #Container {
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="rotateEntity" class="button black">小球旋转</button>
+    <button id="airplane" class="button black">飞机飞行</button>
+  </div>
+  <div id="Container"></div>
+</body>
+
+<script>
+  // let viewer = null
+  let scene = null
+  let camera = null
+  let height = 500000.0
+  let ellipsoid = null
+
+  function onload(SuperMap3D) {
+    viewer = new SuperMap3D.Viewer('Container', {
+      // 取消信息提示框
+      infoBox: false,
+      timeline: true,
+      animation: true,
+      shouldAnimate: true,
+    });
+    scene = viewer.scene;
+    camera = viewer.camera;
+    scene.globe.depthTestAgainstTerrain = false; // 取消深度测试
+
+    // 创建球
+    // ellipsoid = viewer.entities.add({
+    //   id: 'ellipsoid',
+    //   name: 'ellipsoid',
+    //   position: SuperMap3D.Cartesian3.fromDegrees(120, 29.995, 400),
+    //   ellipsoid: {
+    //     radii: new SuperMap3D.Cartesian3(100, 100, 100),
+    //     material: new SuperMap3D.ImageMaterialProperty({
+    //       image: "../assets/background.jpg"
+    //     })
+    //   }
+    // });
+
+    // viewer.flyTo(ellipsoid)
+  }
+  onload(SuperMap3D);
+
+  // 飞机飞行
+  $("#airplane").click(() => {
+    const start = SuperMap3D.JulianDate.now()
+    const stop = SuperMap3D.JulianDate.addSeconds(
+      start,
+      360,
+      new SuperMap3D.JulianDate()
+    );
+
+    // 设置 viewer 时间,保证在所需时间观看
+    viewer.clock.startTime = start.clone();
+    viewer.clock.stopTime = stop.clone();
+    viewer.clock.currentTime = start.clone();
+    viewer.clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP; // 时间循环
+    viewer.clock.multiplier = 10; // 时间速率 正数向前进 负数向后退
+    // 设置时间轴范围
+    viewer.timeline.zoomTo(start, stop);
+
+    const position = computeRingFlight(-112.110693, 36.0994841, 0.03, start)
+    const entities = viewer.entities.add({
+      position,
+      // 实体方向----根据所提供 PositionProperty 的速度计算为 Quaternion 旋转
+      orientation: new SuperMap3D.VelocityOrientationProperty(position),
+      // 将实体可用性设置为与模拟时间相同的间隔。设置entity可用范围
+      availability: new SuperMap3D.TimeIntervalCollection([
+        new SuperMap3D.TimeInterval({
+          start: start,
+          stop: stop,
+        }),
+      ]),
+      // 模型对象
+      model: {
+        uri: "../SampleData/models/Cesium_Air.glb",
+        // uri: "../SampleData/gltf/客机模型/客机模型.gltf",
+        minimumPixelSize: 64,
+      },
+      // 路径
+      path: {
+        resolution: 1,
+        material: new SuperMap3D.PolylineGlowMaterialProperty({
+          glowPower: 0.1,
+          color: SuperMap3D.Color.YELLOW,
+        }),
+        width: 10,
+      },
+    })
+  })
+
+  /**
+   * @description: 计算环形飞行路线
+   * @param {*} lon 经度
+   * @param {*} lat 维度
+   * @param {*} radius 半径
+   * @param {*} start 开始时间
+   * @return {*} 飞行路线Property
+   */
+  function computeRingFlight(lon, lat, radius, start) {
+    const points = []
+    const property = new SuperMap3D.SampledPositionProperty()
+    for (let i = 0; i <= 360; i += 45) {
+      // 角度转弧度
+      const radians = SuperMap3D.Math.toRadians(i);
+      const time = SuperMap3D.JulianDate.addSeconds(
+        start,
+        i,
+        new SuperMap3D.JulianDate()
+      );
+      // 计算位置
+      const position = SuperMap3D.Cartesian3.fromDegrees(
+        lon + radius * 1.5 * Math.cos(radians),
+        lat + radius * Math.sin(radians),
+        SuperMap3D.Math.nextRandomNumber() * 500 + 1750
+      );
+      property.addSample(time, position);
+
+      const point = viewer.entities.add({
+        position,
+        point: {
+          pixelSize: 8,
+          color: SuperMap3D.Color.AQUAMARINE,
+          outlineColor: SuperMap3D.Color.YELLOW,
+          outlineWidth: 3,
+        }
+      })
+      points.push(point)
+    }
+    viewer.flyTo(points)
+    return property
+  }
+
+</script>
+
+</html>
