@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-11-09 21:20:14
  * @LastEditors: quling
- * @LastEditTime: 2023-12-22 14:39:21
+ * @LastEditTime: 2023-12-29 15:07:07
  * @Description: 
  * @FilePath: \supermap-webGL\examples\6_Entities_primitive.html
 -->
@@ -97,21 +97,42 @@
       handler.setInputAction((movement) => {
         const screenPosition = movement.position
         const pick = viewer.scene.pick(screenPosition); // 场景拾取，返回在场景中该窗口位置对应的第一个图元对象，如果该位置没有任何物体则返回undefined
-        console.log("pick", pick, SuperMap3D.defined(pick));
-        if (!isDraw) {
-          if (SuperMap3D.defined(pick) && pick.id) {
-            if (pick.id.polylineVolume) {
-              pick.id.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
-                image: '../assets/wall.jpg',
-                repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
-              })
-            } else if (pick.primitive) {
-              pick.primitive.appearance = new SuperMap3D.EllipsoidSurfaceAppearance({
-                material: SuperMap3D.Material.fromType('Checkerboard')
-              })
-            }
-          }
+        console.log("pick", pick, SuperMap3D.defined(pick), pick.id);
+        // if (!isDraw) {
+        if (SuperMap3D.defined(pick) && pick.id) {
+          // if (pick.id.polylineVolume) {
+          // pick.id.polylineVolume.material = new SuperMap3D.ImageMaterialProperty({
+          //   image: '../assets/wall.jpg',
+          //   repeat: new SuperMap3D.Cartesian2(100.0, 10.0),
+          // })
+          // SampledProperty：用来通过给定多个不同时间点的Sample，然后在每两个时间点之间进行线性插值的一种Property
+          const property = new SuperMap3D.SampledProperty(SuperMap3D.Cartesian3);
+
+          // 当前时间
+          const date = new Date()
+          const start = new Date(date.getTime())
+          // 2s后的时间
+          const stop = SuperMap3D.JulianDate.addSeconds(SuperMap3D.JulianDate.fromDate(start), 2, new SuperMap3D.JulianDate())
+
+          console.log(stop);
+
+          // 在两个不同的时间点分别赋予不同的属性
+          property.addSample(SuperMap3D.JulianDate.fromDate(start),
+            new SuperMap3D.Cartesian3(400000.0, 300000.0, height));
+          property.addSample(stop,
+            new SuperMap3D.Cartesian3(400000.0, 300000.0, height * 2));
+
+          console.log(pick.id.box);
+
+          pick.id.box.dimensions = property;
+
+          // } else if (pick.primitive) {
+          //   pick.primitive.appearance = new SuperMap3D.EllipsoidSurfaceAppearance({
+          //     material: SuperMap3D.Material.fromType('Checkerboard')
+          //   })
+          // }
         }
+        // }
       }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK);
 
       // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
@@ -266,7 +287,23 @@
       appearance: new SuperMap3D.PerInstanceColorAppearance()
     })
     scene.primitives.add(ellipsePrimitive)
-    viewer.flyTo(viewer.entities.getById("polylineVolume3"));
+
+    let height = 500000.0
+    // 创建盒子
+    const blueBox = viewer.entities.add({
+      id: 'box',
+      name: 'Blue box',
+      position: SuperMap3D.Cartesian3.fromDegrees(-114.0, 40.0, 300000.0),
+      box: {
+        // dimensions: new SuperMap3D.Cartesian3(400000.0, 300000.0, height),
+        // 上面的写法等同于下面的写法
+        dimensions: new SuperMap3D.ConstantProperty(new SuperMap3D.Cartesian3(400000.0, 300000.0, height)),
+        material: SuperMap3D.Color.BLUE,
+        outline: true,
+      }
+    });
+
+    viewer.flyTo(blueBox);
 
 
     // 定位到服务
