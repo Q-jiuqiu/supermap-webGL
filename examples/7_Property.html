@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-12-29 09:29:13
  * @LastEditors: quling
- * @LastEditTime: 2024-01-05 15:01:18
+ * @LastEditTime: 2024-01-05 15:19:03
  * @Description: 
  * @FilePath: \supermap-webGL\examples\7_Property.html
 -->
@@ -331,6 +331,7 @@
         model: {
           uri: "../SampleData/models/SuperMap_Ground.gltf",
           minimumPixelSize: 90,
+          heightReference: SuperMap3D.HeightReference.CLAMP_TO_GROUND // 贴地
         },
         // 将实体可用性设置为与模拟时间相同的间隔。设置entity可用范围
         availability: new SuperMap3D.TimeIntervalCollection([
@@ -358,7 +359,7 @@
       viewer.clock.startTime = start
       viewer.clock.currentTime = start
       viewer.clock.stopTime = stop
-      viewer.clock.multiplier = 20 //设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速 
+      viewer.clock.multiplier = 1 //设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速 
       if (isLoop) {
         viewer.clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP // 到达clock.stopTime后"时间倒流"
         // viewer.clock.clockRange = SuperMap3D.ClockRange.CLAMPED // 到达clock.stopTime后"时间停止"
