@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2023-12-29 09:29:13
  * @LastEditors: quling
- * @LastEditTime: 2023-12-29 15:11:36
+ * @LastEditTime: 2024-01-05 15:01:18
  * @Description: 
  * @FilePath: \supermap-webGL\examples\7_Property.html
 -->
@@ -53,6 +53,8 @@
     <button id="CompositeProperty" class="button black">CompositeProperty-组合变化</button>
     <button id="current" class="button black">获取box</button>
     <button id="del" class="button black">删除box</button>
+    <button id="circle" class="button black">圆形旋转</button>
+    <button id="routeMove" class="button black">按路线运动</button>
   </div>
   <div id="Container"></div>
 
@@ -67,15 +69,18 @@
       viewer = new SuperMap3D.Viewer('Container', {
         // 取消信息提示框
         infoBox: false,
+        timeline: true, // 时间轴组件
+        animation: true, // 获取动画小部件
       });
       scene = viewer.scene;
       camera = viewer.camera;
+      scene.globe.depthTestAgainstTerrain = false;
 
       // 创建盒子
       blueBox = viewer.entities.add({
         id: 'box',
         name: 'Blue box',
-        position: SuperMap3D.Cartesian3.fromDegrees(-114.0, 40.0, 300000.0),
+        position: SuperMap3D.Cartesian3.fromDegrees(-100.0, 44.0, 300000.0),
         box: {
           // dimensions: new SuperMap3D.Cartesian3(400000.0, 300000.0, height),
           // 上面的写法等同于下面的写法
@@ -84,8 +89,6 @@
           outline: true,
         }
       });
-
-      viewer.flyTo(blueBox)
     }
     onload(SuperMap3D);
 
@@ -113,6 +116,8 @@
 
     // 通过Property实现-SampledProperty-线性变化-2s过后虽然看不见box了,但box并没有被删除,仍然存在EntityCollection中
     $("#SampledProperty").click(() => {
+      viewer.flyTo(blueBox)
+
       const property = SampledProperty()
       blueBox.box.dimensions = property;
 
@@ -155,6 +160,7 @@
 
     // 通过Property实现-TimeIntervalCollectionProperty-跳跃变化
     $("#TimeIntervalCollectionProperty").click(() => {
+      viewer.flyTo(blueBox)
       const property = TimeIntervalCollectionProperty()
       blueBox.box.dimensions = property
     })
@@ -196,6 +202,8 @@
     // 通过Property实现-CompositeProperty-组合变化
     // 如果出现时间重叠的部分,那个变化后设置,就执行那个
     $("#CompositeProperty").click(() => {
+      viewer.flyTo(blueBox)
+
       const composite = new SuperMap3D.CompositeProperty();
       // 设置静态变化Property
       const constantProperty = new SuperMap3D.ConstantProperty(new SuperMap3D.Cartesian3(400000.0, 300000.0, height))
@@ -246,6 +254,120 @@
 
       blueBox.box.dimensions = composite
     })
+
+    $("#circle").click(() => {
+      let angle = 0 // 初始角度
+      const circle = viewer.entities.add({
+        id: "circle",
+        position: new SuperMap3D.Cartesian3.fromDegrees(100, 100, 10),
+        ellipse: {
+          semiMajorAxis: 1000,
+          semiMinorAxis: 1000,
+          material: new SuperMap3D.ImageMaterialProperty({
+            image: "../assets/background.jpg",
+            repeat: new SuperMap3D.Cartesian2(1, 1), // x轴重复1次 Y轴重复1次
+          }),
+          stRotation: new SuperMap3D.CallbackProperty(() => {
+            angle++
+            if (angle >= 360) {
+              angle = 0
+            }
+            return SuperMap3D.Math.toRadians(angle) // 将度数转换为弧度
+          }, false)
+        }
+      })
+      viewer.flyTo(circle)
+    })
+
+    $("#routeMove").click(() => {
+      const start = SuperMap3D.JulianDate.now()
+      const stop = SuperMap3D.JulianDate.addSeconds(start, 360, new SuperMap3D.JulianDate())
+      /**
+       * @description: 计算环形路线,绘制环形上的点
+       * @param {*} log
+       * @param {*} lon
+       * @param {*} radius
+       * @return {*}
+       */
+      function computeCircularRoute(log, lon, radius) {
+        // 计算一个圆形的顶点位置
+        const positions = [];
+        const points = []
+        const property = new SuperMap3D.SampledPositionProperty()
+        // 180 半圆 / 360 整圆
+        for (let i = 0; i <= 360; i++) {
+          const radians = SuperMap3D.Math.toRadians(i);
+          const position = new SuperMap3D.Cartesian3.fromDegrees(
+            log + radius * Math.cos(radians),
+            lon + radius * Math.sin(radians),
+            0)
+
+          property.addSample(SuperMap3D.JulianDate.addSeconds(start, i, new SuperMap3D.JulianDate()), position)
+
+          positions.push(position);
+          const point = viewer.entities.add({
+            position,
+            point: {
+              pixelSize: 0.1,
+              color: SuperMap3D.Color.AQUAMARINE
+            }
+          })
+          points.push(point)
+        }
+        viewer.flyTo(points)
+        return property;
+      }
+
+      const positions = computeCircularRoute(-112.110693, 36.0994841, 10)
+
+      setClock(start, stop)
+
+      viewer.entities.add({
+        id: "airPlan",
+        position: positions,
+        // 设置方向
+        orientation: new SuperMap3D.VelocityOrientationProperty(positions),
+        // 模型
+        model: {
+          uri: "../SampleData/models/SuperMap_Ground.gltf",
+          minimumPixelSize: 90,
+        },
+        // 将实体可用性设置为与模拟时间相同的间隔。设置entity可用范围
+        availability: new SuperMap3D.TimeIntervalCollection([
+          new SuperMap3D.TimeInterval({
+            start,
+            stop
+          })
+        ]),
+        // 路径
+        path: {
+          width: 1
+        }
+      })
+    })
+
+    /**
+     * @description: 设置时钟
+     * @param {JulianDate} start 动画开始时间
+     * @param {JulianDate} stop 动画结束时间
+     * @param {boolean} isLoop 动画是否循环
+     * @return {*}
+     */
+    function setClock(start, stop, isLoop = true) {
+
+      viewer.clock.startTime = start
+      viewer.clock.currentTime = start
+      viewer.clock.stopTime = stop
+      viewer.clock.multiplier = 20 //设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速 
+      if (isLoop) {
+        viewer.clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP // 到达clock.stopTime后"时间倒流"
+        // viewer.clock.clockRange = SuperMap3D.ClockRange.CLAMPED // 到达clock.stopTime后"时间停止"
+        // viewer.clock.clockRange = SuperMap3D.ClockRange.UNBOUNDED // 到达clock.stopTime后"时间继续"
+      }
+      // 将时间设置到可见范围
+      viewer.timeline.zoomTo(start, stop)
+    }
+
   </script>
 </body>
 
