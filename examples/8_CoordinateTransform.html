@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>坐标之间的转换</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #Container {
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="closeTin" class="button black">关闭地形</button>
+    <button id="loadTin" class="button black">打开地形</button>
+  </div>
+
+  <div id="Container"></div>
+</body>
+<script>
+  let viewer = null
+  let scene = null
+  let camera = null
+  let ellipsoid = null
+
+
+  function onload(SuperMap3D) {
+    viewer = new SuperMap3D.Viewer('Container', {
+      // 取消信息提示框
+      infoBox: false,
+      timeline: true,
+      animation: true,
+      shouldAnimate: true,
+    });
+    scene = viewer.scene;
+    camera = viewer.camera;
+    // scene.globe.depthTestAgainstTerrain = true; // 取消深度测试
+
+    // 打开场景服务下的所有图层--地址只到realspace一级  多个场景默认打开第一个
+    const url = "https://www.supermapol.com/realspace/services/3D-CBD-2/rest/realspace"
+    var promise = scene.open(url, "CBD", {
+      // autoSetView: false // 否自动定位到场景,默认为true
+    });
+
+    SuperMap3D.when(promise, function (layers) {
+      console.log(layers);
+    }, function (e) {
+      console.log("失败", e);
+    });
+
+    const handler = new SuperMap3D.ScreenSpaceEventHandler(viewer.canvas)
+
+    handler.setInputAction((movement) => {
+      const screenPosition = movement.position
+      console.log("屏幕坐标-Cartesian2", screenPosition);
+      const cartesian3 = cartesian2ToCartesian3(screenPosition)
+
+      const red = Math.random() * 255
+      const green = Math.random() * 255
+      const blue = Math.random() * 255
+
+      viewer.entities.add({
+        position: cartesian3,
+        point: {
+          pixelSize: 5,
+          color: new SuperMap3D.Color(red, green, blue, 1),
+        }
+      })
+
+    }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK)
+
+  }
+
+  onload(SuperMap3D);
+
+  /**
+   * @description: 屏幕坐标转三维世界坐标 Cartesian2->Cartesian3
+   * @param {Cartesian2} cartesian2 
+   * @return {Cartesian3}
+   */
+  function cartesian2ToCartesian3(cartesian2) {
+    // 方法一: 注意--这里屏幕坐标cartesian2一定要在球上，否则生成出的 cartesian对象 是undefined。
+    // 通过屏幕空间的一个像素和相机的射线查找和地球的交点。
+    const ray = viewer.camera.getPickRay(cartesian2);
+    const cartesian3 = scene.globe.pick(ray, scene);
+
+    // 方法二: 用裸球表面的选取，是基于数学模型的椭圆球体
+    const cartesian3_1 = scene.camera.pickEllipsoid(cartesian2, scene.globe.ellipsoid); // 返回三维世界坐标
+
+    // 方法三:
+    const cartesian3_2 = scene.pickPosition(cartesian2);
+    console.log("---开始---");
+    console.log("Cartesian2->Cartesian3");
+    console.log("屏幕坐标-Cartesian2:", cartesian2);
+    console.log("世界坐标-Cartesian3:", cartesian3);
+    console.log("世界坐标-Cartesian3:", cartesian3_1);
+    console.log("世界坐标-Cartesian3:", cartesian3_2);
+
+    cartesian3ToCartesian2(cartesian3_2)
+    cartesian3ToDegrees(cartesian3_2)
+    console.log("---结束---");
+
+    return cartesian3_2
+  }
+
+  /**
+   * @description: 三维世界坐标转屏幕坐标 Cartesian3->Cartesian2
+   * @param {Cartesian3} cartesian3
+   * @return {Cartesian2}
+   */
+  function cartesian3ToCartesian2(cartesian3) {
+    if (cartesian3) {
+      console.log("Cartesian2->Cartesian2");
+      const cartesian2 = SuperMap3D.SceneTransforms.wgs84ToDrawingBufferCoordinates(scene, cartesian3)
+      console.log("屏幕坐标-Cartesian2:", cartesian2);
+      // 无法将Cartesian3转换成正确的屏幕坐标,仅仅只是保留x,y值,去除z值
+      // const cartesian2_1 = SuperMap3D.Cartesian2.fromCartesian3(cartesian3, new SuperMap3D.Cartesian2())
+      // console.log("屏幕坐标-Cartesian2:", cartesian2_1);
+      const cartesian2_2 = SuperMap3D.SceneTransforms.wgs84ToWindowCoordinates(scene, cartesian3)
+      console.log("屏幕坐标-Cartesian2:", cartesian2_2);
+    }
+  }
+
+  /**
+   * @description: 世界坐标转经纬度坐标 Cartesian3->Degrees
+   * @param {Cartesian3} cartesian3
+   * @return {Degrees}
+   */
+  function cartesian3ToDegrees(cartesian3) {
+    const cartographic = cartesian3ToCartographic(cartesian3)
+    const lat = SuperMap3D.Math.toDegrees(cartographic.latitude);
+    const lng = SuperMap3D.Math.toDegrees(cartographic.longitude);
+    const height = cartographic.height;
+    console.log("Cartographic->Degrees");
+    console.log("经度:", lng, "纬度:", lat, "高度:", height);
+    DegreesToCartesian3(lng, lat, height)
+  }
+
+  /**
+   * @description: 世界坐标转地理坐标-弧度制 Cartesian3->Cartographic
+   * @param {*} cartesian3
+   * @return {*} 
+   */
+  function cartesian3ToCartographic(cartesian3) {
+    console.log("Cartesian3->Cartographic");
+    // 方法一:
+    const cartographic = SuperMap3D.Cartographic.fromCartesian(cartesian3, scene.globe.ellipsoid)
+    console.log("地理坐标(弧度):", cartographic);
+    // 方法二:
+    // const cartographic1 = scene.globe.ellipsoid.cartesianToCartographic(cartesian3);
+    const cartographic1 = SuperMap3D.Ellipsoid.WGS84.cartesianToCartographic(cartesian3);
+    console.log("地理坐标(弧度):", cartographic1);
+
+    return cartographic
+  }
+
+  /**
+   * @description: 经纬度坐标转世界坐标 Degrees->Cartesian3
+   * @param {*} lng 经度 单位度
+   * @param {*} lat 纬度 单位度
+   * @param {*} height 高度 单位米
+   * @return {*}
+   */
+  function DegreesToCartesian3(lng, lat, height) {
+    // 方法一:
+    const cartesian3 = SuperMap3D.Cartesian3.fromDegrees(lng, lat, height);
+    console.log("Degrees->Cartesian3");
+    console.log("世界坐标-Cartesian3:", cartesian3);
+
+    // 方法2: 借助 ellipsoid 对象,先转换为弧度在转换
+    const cartographic = SuperMap3D.Cartographic.fromDegrees(lng, lat, height); //单位：度，度，米 --> 返回单位为弧度
+    const cartesian3_1 = scene.globe.ellipsoid.cartographicToCartesian(cartographic);
+    console.log("世界坐标-Cartesian3:", cartesian3_1);
+  }
+
+  $("#closeTin").click(() => {
+    console.log("关闭地形");
+    scene.terrainProvider = new SuperMap3D.EllipsoidTerrainProvider({});
+  })
+
+
+  let isFirst = true
+  $("#loadTin").click(() => {
+    // 地形服务访问地址 DatasetDEM为地形图层名称
+    const url = "http://www.supermapol.com/realspace/services/3D-dixingyingxiang/rest/realspace/datas/DatasetDEM"
+    const terrainProvider = new SuperMap3D.SuperMapTerrainProvider({
+      url,
+      isSct: true, // 地形服务源自SuperMap iServer发布时需设置isSct为true
+      invisibility: true // 是否开启设置地形显隐的功能
+    })
+    scene.terrainProvider = terrainProvider
+    if (isFirst) {
+      viewer.scene.camera.flyTo({
+        destination: new SuperMap3D.Cartesian3(-1206939.1925299785, 5337998.241228442, 3286279.2424502545),
+        orientation: {
+          heading: 1.4059101895600987,
+          pitch: -0.20917672793046682,
+          roll: 2.708944180085382e-13
+        }
+      });
+      isFirst = false
+    }
+  })
+</script>
+
+</html>
