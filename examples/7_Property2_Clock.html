@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Property案例</title>
+  <title>Property案例和时钟</title>
   <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
   <link rel="stylesheet" href="../lib/css/pretty.css">
   <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
@@ -37,6 +37,8 @@
   <div class="operation">
     <button id="rotateEntity" class="button black">圆形旋转</button>
     <button id="airplane" class="button black">飞机飞行</button>
+    <button id="CurrentTime" class="button black">当前时间</button>
+    <button id="SetTime" class="button black">设置时间</button>
   </div>
   <div id="Container"></div>
 </body>
@@ -52,27 +54,13 @@
       // 取消信息提示框
       infoBox: false,
       timeline: true,
-      animation: true,
+      animation: true, // clock采用儒略日时间,与北京时间有8个小时时差
       shouldAnimate: true,
     });
     scene = viewer.scene;
     camera = viewer.camera;
     scene.globe.depthTestAgainstTerrain = false; // 取消深度测试
 
-    // 创建球
-    // ellipsoid = viewer.entities.add({
-    //   id: 'ellipsoid',
-    //   name: 'ellipsoid',
-    //   position: SuperMap3D.Cartesian3.fromDegrees(120, 29.995, 400),
-    //   ellipsoid: {
-    //     radii: new SuperMap3D.Cartesian3(100, 100, 100),
-    //     material: new SuperMap3D.ImageMaterialProperty({
-    //       image: "../assets/background.jpg"
-    //     })
-    //   }
-    // });
-
-    // viewer.flyTo(ellipsoid)
   }
   onload(SuperMap3D);
 
@@ -112,14 +100,7 @@
       new SuperMap3D.JulianDate()
     );
 
-    // 设置 viewer 时间,保证在所需时间观看
-    viewer.clock.startTime = start.clone();
-    viewer.clock.stopTime = stop.clone();
-    viewer.clock.currentTime = start.clone();
-    viewer.clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP; // 时间循环
-    viewer.clock.multiplier = 10; // 时间速率 正数向前进 负数向后退
-    // 设置时间轴范围
-    viewer.timeline.zoomTo(start, stop);
+    setClock(start, stop)
 
     const position = computeRingFlight(-112.110693, 36.0994841, 0.03, start)
     const entities = viewer.entities.add({
@@ -135,7 +116,7 @@
       ]),
       // 模型对象
       model: {
-        uri: "../SampleData/models/Cesium_Air.glb",
+        uri: "../SampleData/models/SuperMap3D_Air.glb",
         // uri: "../SampleData/gltf/客机模型/客机模型.gltf",
         minimumPixelSize: 64,
       },
@@ -150,6 +131,28 @@
       },
     })
   })
+
+  /**
+     * @description: 设置时钟,保证在所需时间观看
+     * @param {JulianDate} start 动画开始时间
+     * @param {JulianDate} stop 动画结束时间
+     * @param {boolean} isLoop 动画是否循环
+     * @return {*}
+     */
+  function setClock(start, stop, isLoop = true) {
+
+    viewer.clock.startTime = start
+    viewer.clock.currentTime = start
+    viewer.clock.stopTime = stop
+    viewer.clock.multiplier = 10 //设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速 
+    if (isLoop) {
+      viewer.clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP // 到达clock.stopTime后"时间倒流"
+      // viewer.clock.clockRange = SuperMap3D.ClockRange.CLAMPED // 到达clock.stopTime后"时间停止"
+      // viewer.clock.clockRange = SuperMap3D.ClockRange.UNBOUNDED // 到达clock.stopTime后"时间继续"
+    }
+    // 将时间设置到可见范围
+    viewer.timeline.zoomTo(start, stop)
+  }
 
   /**
    * @description: 计算环形飞行路线
@@ -192,6 +195,35 @@
     viewer.flyTo(points)
     return property
   }
+
+  $("#CurrentTime").click(() => {
+    console.log(viewer.clock, viewer.clock.currentTime);
+  })
+
+  $("#SetTime").click(() => {
+    //设定起始时间
+    const start = SuperMap3D.JulianDate.now()
+    //设定终止时间
+    const stop = SuperMap3D.JulianDate.addSeconds(
+      start,
+      360,
+      new SuperMap3D.JulianDate()
+    );
+    // 将视图设置为提供的时间,若为设置则是展示当天的时间--24小时
+    viewer.timeline.zoomTo(start, stop);
+    //定义clock事件
+    let clock = viewer.clock;
+    //设定clock的起始时间
+    clock.startTime = start;
+    //设定clock的终止时间
+    // clock.endTime = stop;
+    //设定clock的当前时间
+    clock.currentTime.start;
+    //设定clock范围为不断循环
+    clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP;
+    //设定时间速率
+    clock.multiplier = 86400; // 设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速
+  })
 
 </script>
 
