@@ -38,7 +38,9 @@
     <button id="rotateEntity" class="button black">圆形旋转</button>
     <button id="airplane" class="button black">飞机飞行</button>
     <button id="CurrentTime" class="button black">当前时间</button>
-    <button id="SetTime" class="button black">设置时间</button>
+    <button id="setTime" class="button black">设置时间</button>
+    <button id="formatTime" class="button black">Animation显示当前系统时间</button>
+    <!-- <button id="tickStop" class="button black">tickStop</button> -->
   </div>
   <div id="Container"></div>
 </body>
@@ -48,6 +50,7 @@
   let scene = null
   let camera = null
   let ellipsoid = null
+  let tickId = null
 
   function onload(SuperMap3D) {
     viewer = new SuperMap3D.Viewer('Container', {
@@ -61,6 +64,12 @@
     camera = viewer.camera;
     scene.globe.depthTestAgainstTerrain = false; // 取消深度测试
 
+    // 监听每一帧变化
+    // function tick() {
+    //   console.log(viewer.clock.currentTime);
+    //   tickId = SuperMap3D.requestAnimationFrame(tick);
+    // }
+    // tick();
   }
   onload(SuperMap3D);
 
@@ -197,10 +206,10 @@
   }
 
   $("#CurrentTime").click(() => {
-    console.log(viewer.clock, viewer.clock.currentTime);
+    console.log("当前儒略日时间", viewer.clock.currentTime);
   })
 
-  $("#SetTime").click(() => {
+  $("#setTime").click(() => {
     //设定起始时间
     const start = SuperMap3D.JulianDate.now()
     //设定终止时间
@@ -216,15 +225,46 @@
     //设定clock的起始时间
     clock.startTime = start;
     //设定clock的终止时间
-    // clock.endTime = stop;
+    clock.endTime = stop;
     //设定clock的当前时间
     clock.currentTime.start;
     //设定clock范围为不断循环
     clock.clockRange = SuperMap3D.ClockRange.LOOP_STOP;
     //设定时间速率
-    clock.multiplier = 86400; // 设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速
+    clock.multiplier = 20; // 设置倍速 正数是正向(前进)加速  负数数是反向(回退)加速 若设置为86400，表示真实世界经过1秒，而在Cesium中时钟经过1天
+
   })
 
+  /**
+   * @description: Animation显示当前系统时间
+   * @return {*}
+   */
+  $("#formatTime").click(() => {
+    viewer.animation.viewModel.timeFormatter = (data, viewModel) => {
+      const julianDate_now = SuperMap3D.JulianDate.now()
+      const now = new Date()
+      // 返回协调世界时（UTC）相对于当前时区的时间差值，单位为分钟。
+      const minutes = 0 - now.getTimezoneOffset()
+      // 增加时差后的JulianDate
+      const dataZone8 = SuperMap3D.JulianDate.addMinutes(julianDate_now, minutes, new SuperMap3D.JulianDate())
+
+      const gregorianDate = SuperMap3D.JulianDate.toGregorianDate(dataZone8, new SuperMap3D.JulianDate())
+
+      const millisecond = Math.round(gregorianDate.millisecond);
+
+      if (Math.abs(viewModel._clockViewModel.multiplier) < 1) {
+        return SuperMap3D.sprintf("%02d:%02d:%02d.%03d;", gregorianDate.hour, gregorianDate.minute, gregorianDate.second);
+      }
+      return SuperMap3D.sprintf("%02d:%02d:%02d GMT+8", gregorianDate.hour, gregorianDate.minute, gregorianDate.second);
+    }
+  })
+
+  // $("#tickStop").click(() => {
+  //   if (tickId) {
+  //     SuperMap3D.cancelAnimationFrame(tickId);
+  //     tickId = null
+  //   }
+  // })
 </script>
 
 </html>
