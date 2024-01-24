@@ -1,0 +1,180 @@
+<!--
+ * @Author: quling
+ * @Date: 2024-01-24 20:29:47
+ * @LastEditors: quling
+ * @LastEditTime: 2024-01-24 22:04:43
+ * @Description: 
+ * @FilePath: \webGL\examples\9_popup.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>弹窗</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    #Container {
+      background-size: cover;
+      width: 100%;
+      height: 100%;
+    }
+
+    #custom-popup {
+      display: none;
+      width: 200px;
+      height: 200px;
+      background-color: #cf9bf4;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    .custom-popup-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 10px;
+      align-items: center;
+      height: 40px;
+      border-bottom: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+
+    .custom-popup-close {
+      cursor: pointer;
+    }
+
+    .custom-popup-close:hover {
+      color: #f00;
+    }
+
+    .custom-popup-content {
+      overflow: hidden;
+    }
+
+    .detail {
+      height: 160px;
+      padding: 10px;
+      box-sizing: border-box;
+    }
+
+    #custom-popup::after {
+      width: 0;
+      height: 0;
+      display: block;
+      content: " ";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-top: 10px #cf9bf4 solid;
+      border-right: 10px transparent solid;
+      border-bottom: 10px transparent solid;
+      border-left: 10px transparent solid;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="custom-popup">
+    <div class="custom-popup-header">
+      <span class="custom-popup-title">111</span>
+      <span class="custom-popup-close">X</span>
+    </div>
+    <div class="custom-popup-content">
+      <div class="detail"></div>
+    </div>
+  </div>
+
+  <div id="Container"></div>
+</body>
+<script>
+  let viewer = null
+  let scene = null
+  let camera = null
+  let ellipsoid = null
+
+
+  function onload(SuperMap3D) {
+    viewer = new SuperMap3D.Viewer('Container', {
+      infoBox: false,
+      timeline: true,
+      animation: true,
+      shouldAnimate: true,
+    });
+    scene = viewer.scene;
+    camera = viewer.camera;
+
+    // 实现一: 使用原生弹窗 InfoBox
+    const line = viewer.entities.add({
+      id: "test",
+      show: true,
+      description: "这是一条线entity",
+      position: SuperMap3D.Cartesian3.fromDegrees(117, 32, 500),
+      polyline: new SuperMap3D.PolylineGraphics({
+        positions: SuperMap3D.Cartesian3.fromDegreesArrayHeights([101, 40, 50000, 119, 40, 50000]),
+        width: 100,
+        material: new SuperMap3D.PolylineGlowMaterialProperty({
+          color: SuperMap3D.Color.CHARTREUSE,
+          glowPower: 0.25
+        })
+      })
+    })
+    viewer.flyTo(line);
+
+    line.name = 'wyoming';
+    line.description = '<img width="50%"  style="float:left; margin: 0 1em 1em 0;" alt="图片" src="../assets/background.jpg"/>\
+    <p>Wyoming is a state in the mountain region of the Western United States.</p>\
+    <p>Source:   <a style="color: WHITE"    target="_blank" href="http://en.wikipedia.org/wiki/Wyoming">Wikpedia</a></p>'
+
+
+    // 自定义弹框
+    const handler = new SuperMap3D.ScreenSpaceEventHandler(scene.canvas);
+    handler.setInputAction(function (movement) {
+      const { x, y } = movement.position
+      console.log(movement.position);
+      const picked = viewer.scene.pick(movement.position)
+      if (SuperMap3D.defined(picked) && picked.id.id) {
+        let id = picked.id.id
+        let name = picked.id._name
+        let description = picked.id._description
+        console.log(picked.id);
+        $('.custom-popup-title')[0].innerHTML = name
+        $('.detail')[0].innerHTML = description
+        $('#custom-popup')[0].style.display = 'block'
+        // 使弹框的小箭头在鼠标的点击位置出现
+        $('#custom-popup')[0].style.top = `${y - 210}px`
+        $('#custom-popup')[0].style.left = `${x - 110}px`
+      } else {
+        return
+      }
+    }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK)
+  }
+
+  onload(SuperMap3D);
+
+  $(".custom-popup-close").click(() => {
+    $('#custom-popup')[0].style.display = 'none'
+  })
+</script>
+
+</html>
