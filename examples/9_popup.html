@@ -2,9 +2,9 @@
  * @Author: quling
  * @Date: 2024-01-24 20:29:47
  * @LastEditors: quling
- * @LastEditTime: 2024-01-24 22:04:43
- * @Description: 
- * @FilePath: \webGL\examples\9_popup.html
+ * @LastEditTime: 2024-01-25 10:44:33
+ * @Description: 弹框
+ * @FilePath: \supermap-webGL\examples\9_popup.html
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -111,7 +111,7 @@
   let viewer = null
   let scene = null
   let camera = null
-  let ellipsoid = null
+  let selectedCar3 = null
 
 
   function onload(SuperMap3D) {
@@ -141,40 +141,63 @@
     })
     viewer.flyTo(line);
 
+    console.log(line.position);
+
     line.name = 'wyoming';
     line.description = '<img width="50%"  style="float:left; margin: 0 1em 1em 0;" alt="图片" src="../assets/background.jpg"/>\
     <p>Wyoming is a state in the mountain region of the Western United States.</p>\
     <p>Source:   <a style="color: WHITE"    target="_blank" href="http://en.wikipedia.org/wiki/Wyoming">Wikpedia</a></p>'
 
 
-    // 自定义弹框
+    // 实现二: 自定义弹框
     const handler = new SuperMap3D.ScreenSpaceEventHandler(scene.canvas);
+    // 监听点击地球事件
     handler.setInputAction(function (movement) {
       const { x, y } = movement.position
-      console.log(movement.position);
+      // 笛卡尔2(屏幕坐标) 转 笛卡尔3  为了后面实时渲染监听事件转换获得正确的屏幕坐标
+      selectedCar3 = scene.pickPosition(movement.position)
+      // 获得实体
       const picked = viewer.scene.pick(movement.position)
       if (SuperMap3D.defined(picked) && picked.id.id) {
         let id = picked.id.id
         let name = picked.id._name
         let description = picked.id._description
-        console.log(picked.id);
+        // 设置弹框显示内容
         $('.custom-popup-title')[0].innerHTML = name
         $('.detail')[0].innerHTML = description
         $('#custom-popup')[0].style.display = 'block'
-        // 使弹框的小箭头在鼠标的点击位置出现
+        // 设置弹框位置 使弹框的小箭头在鼠标的点击位置出现
         $('#custom-popup')[0].style.top = `${y - 210}px`
         $('#custom-popup')[0].style.left = `${x - 110}px`
+        // 实时渲染事件监听  获取当前场景每帧渲染结束时的事件，监听该事件在每帧渲染结束时触发
+        scene.postRender.addEventListener(positionRender)
       } else {
-        return
+        $('#custom-popup')[0].style.display = 'none'
+        scene.postRender.removeEventListener(positionRender)
       }
     }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK)
   }
 
   onload(SuperMap3D);
 
+  /**
+   * @description: 关闭弹框
+   * @return {*}
+   */
   $(".custom-popup-close").click(() => {
     $('#custom-popup')[0].style.display = 'none'
   })
+
+  /**
+   * @description: 实时更新窗口位置 保证弹框随地球一起动
+   * @return {*}
+   */
+  function positionRender() {
+    // 笛卡尔3 转 笛卡尔2(屏幕坐标)
+    const windowPosition = SuperMap3D.SceneTransforms.wgs84ToWindowCoordinates(scene, selectedCar3)
+    $('#custom-popup')[0].style.top = `${windowPosition.y - 210}px`
+    $('#custom-popup')[0].style.left = `${windowPosition.x - 110}px`
+  }
 </script>
 
 </html>
