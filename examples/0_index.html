@@ -1,0 +1,81 @@
+<!--
+ * @Author: quling
+ * @Date: 2024-01-25 13:31:51
+ * @LastEditors: quling
+ * @LastEditTime: 2024-01-25 14:05:31
+ * @Description: 
+ * @FilePath: \supermap-webGL\examples\0_index.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>首页</title>
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      height: 100vh;
+      width: 100vw;
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      overflow: hidden;
+    }
+
+    .menu {
+      overflow: auto;
+      background: rgb(51, 57, 53);
+    }
+
+    .menuItem {
+      display: block;
+      text-decoration: none;
+      color: #333;
+      height: 40px;
+      line-height: 40px;
+      border-bottom: 1px solid rgb(51, 57, 53);
+      background: rgb(118, 122, 119);
+      text-align: center;
+    }
+
+    .activeItem {
+      background: rgb(198, 251, 210);
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="menu">
+      <a class="menuItem" href="./9_popup.html">弹窗</a>
+      <a class="menuItem" href="./8_CoordinateTransform.html">坐标之间的转换</a>
+    </div>
+    <div class="content">
+      <iframe id="iframeMain" name="content-iframe" src=""></iframe>
+    </div>
+  </div>
+</body>
+
+<script>
+  $(".menuItem").click(function (e) {
+    e.preventDefault();
+    $("#iframeMain").attr("src", $(this).attr("href"));
+    $('.menuItem').removeClass('activeItem');
+    $(this).addClass('activeItem');
+  });
+
+  $($(".menuItem")[0]).click()
+</script>
+
+</html>
