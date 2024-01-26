@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2024-01-24 20:29:47
  * @LastEditors: quling
- * @LastEditTime: 2024-01-25 16:53:55
+ * @LastEditTime: 2024-01-26 15:22:31
  * @Description: 弹框
  * @FilePath: \supermap-webGL\examples\9_popup.html
 -->
@@ -111,8 +111,9 @@
   let viewer = null
   let scene = null
   let camera = null
-  let selectedCar3 = null
-
+  let selectedCar3 = null // 在屏幕上选中点的笛卡尔3坐标
+  // 设置标量值在眼睛空间中的近距离和远距离处的上下边界 -- 设置相机距离范围,已经缩放大小 -- 当距离为3000000时缩放比例为1,当距离为10000000时缩放比例为0.2
+  const scaleByDistance = new SuperMap3D.NearFarScalar(3000000, 1, 10000000, 0.2)
 
   function onload(SuperMap3D) {
     viewer = new SuperMap3D.Viewer('Container', {
@@ -141,7 +142,15 @@
     })
     viewer.flyTo(line);
 
-    console.log(line.position);
+    // 当相机距离地球高度高于1.5e7时 缩放比例为0 广告entity"消失"
+    // const entity = viewer.entities.add({
+    //   position: SuperMap3D.Cartesian3.fromDegrees(-75.59777, 40.03883),
+    //   billboard: {
+    //     image: '../assets/wall.jpg',
+    //     scaleByDistance: new SuperMap3D.NearFarScalar(1.5e2, 2.0, 1.5e7, 0)
+    //   }
+    // });
+
 
     line.name = 'wyoming';
     line.description = '<img width="50%"  style="float:left; margin: 0 1em 1em 0;" alt="图片" src="../assets/background.jpg"/>\
@@ -167,13 +176,15 @@
         $('.detail')[0].innerHTML = description
         $('#custom-popup')[0].style.display = 'block'
         // 设置弹框位置 使弹框的小箭头在鼠标的点击位置出现
-        $('#custom-popup')[0].style.top = `${y - 210}px`
-        $('#custom-popup')[0].style.left = `${x - 110}px`
+        positionRender()
         // 实时渲染事件监听  获取当前场景每帧渲染结束时的事件，监听该事件在每帧渲染结束时触发
-        scene.postRender.addEventListener(positionRender)
+        // scene.postRender.addEventListener(positionRender)
+        // 监听相机视角发生变化
+        camera.changed.addEventListener(positionRender)
       } else {
         $('#custom-popup')[0].style.display = 'none'
-        scene.postRender.removeEventListener(positionRender)
+        // scene.postRender.removeEventListener(positionRender)
+        camera.changed.removeEventListener(positionRender)
       }
     }, SuperMap3D.ScreenSpaceEventType.LEFT_CLICK)
   }
@@ -195,8 +206,26 @@
   function positionRender() {
     // 笛卡尔3 转 笛卡尔2(屏幕坐标)
     const windowPosition = SuperMap3D.SceneTransforms.wgs84ToWindowCoordinates(scene, selectedCar3)
-    $('#custom-popup')[0].style.top = `${windowPosition.y - 210}px`
-    $('#custom-popup')[0].style.left = `${windowPosition.x - 110}px`
+    // 计算相机位置到选中点的距离
+    const distance = SuperMap3D.Cartesian3.distance(camera.position, selectedCar3);
+    let scale = 1
+    // 小于最近距离
+    if (distance < scaleByDistance.near) {
+      scale = scaleByDistance.nearValue;
+    } else if (distance > scaleByDistance.far) {
+      // 大于最远距离
+      scale = scaleByDistance.farValue;
+    } else {
+      // 最近距离 <= 距离 <= 最远距离
+      const val1 = scaleByDistance.farValue - scaleByDistance.nearValue;
+      const val2 = scaleByDistance.far - scaleByDistance.near;
+      scale = ((distance - scaleByDistance.near) / val2) * val1 + scaleByDistance.nearValue;
+    }
+    $('#custom-popup')[0].style.transform = `scale(${scale})`;
+
+    // 205 * (1 - scale) / 2 解决 scale 之后位置偏移
+    $('#custom-popup')[0].style.top = `${windowPosition.y - 205 + 205 * (1 - scale) / 2}px`
+    $('#custom-popup')[0].style.left = `${windowPosition.x - 105}px`
   }
 </script>
 
