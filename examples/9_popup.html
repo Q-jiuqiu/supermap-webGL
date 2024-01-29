@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2024-01-24 20:29:47
  * @LastEditors: quling
- * @LastEditTime: 2024-01-26 15:22:31
+ * @LastEditTime: 2024-01-29 14:24:40
  * @Description: 弹框
  * @FilePath: \supermap-webGL\examples\9_popup.html
 -->
@@ -208,6 +208,22 @@
     const windowPosition = SuperMap3D.SceneTransforms.wgs84ToWindowCoordinates(scene, selectedCar3)
     // 计算相机位置到选中点的距离
     const distance = SuperMap3D.Cartesian3.distance(camera.position, selectedCar3);
+
+
+    // 将三维坐标转换为地理坐标(弧度制) 获取相机距离地面的高度(海拔)
+    const cameraHeight = scene.globe.ellipsoid.cartesianToCartographic(camera.position).height
+    // scene.globe.ellipsoid.maximumRadius 地球椭球体的最大半径
+    // 以相机高度加上地球最大半径为基准
+    const standard = cameraHeight + scene.globe.ellipsoid.maximumRadius
+    if (!(distance > standard)) {
+      // 如果相机到选择点的距离小于基准,说明选中点在地球的正面
+      $('#custom-popup')[0].style.display = "block";
+    } else {
+      // 如果相机到选择点的距离大于等于基准,说明选中点已经移动到地球的背面了
+      $('#custom-popup')[0].style.display = "none";
+      return
+    }
+
     let scale = 1
     // 小于最近距离
     if (distance < scaleByDistance.near) {
