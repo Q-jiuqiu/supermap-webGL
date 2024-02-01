@@ -1,0 +1,204 @@
+<!--
+ * @Author: quling
+ * @Date: 2024-01-29 14:27:19
+ * @LastEditors: quling
+ * @LastEditTime: 2024-02-01 14:19:51
+ * @Description: 
+ * @FilePath: \supermap-webGL\examples\11_query.html
+-->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>空间查询</title>
+  <link href="../lib/Build/SuperMap3D/Widgets/widgets.css" rel="stylesheet">
+  <link rel="stylesheet" href="../lib/css/pretty.css">
+  <link rel="stylesheet" href="../lib/css/bootstrap.min.css">
+  <script type="text/javascript" src="../lib/js/tooltip.js"></script>
+  <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
+  <script type="text/javascript" src="../lib/js/config.js"></script>
+  <style>
+    body {
+      position: relative;
+
+    }
+
+    .operation {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* 设置光标样式 */
+    .drawCur {
+      cursor: url("../assets/cur/draw.cur"), auto !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="operation">
+    <button id="addSupermap" class="button black">添加超图场景</button>
+    <button id="loadTin" class="button black">打开地形</button>
+  </div>
+  <div id="Container"></div>
+</body>
+
+<script>
+  let viewer = null
+  let scene = null
+  let camera = null
+  let drawHandler = null
+  let tooltip = null
+
+  function onload(SuperMap3D) {
+    viewer = new SuperMap3D.Viewer('Container', {
+      timeline: true,
+      animation: true,
+      shouldAnimate: true,
+    })
+
+    scene = viewer.scene
+    tooltip = createTooltip(document.body);
+  }
+
+  onload(SuperMap3D)
+
+  $("#addSupermap").click(function () {
+    const promise = scene.open(URL_CONFIG.SCENE_CBD, "CBD")
+    $(this).attr("disabled", true);
+    SuperMap3D.when(promise, (layers) => {
+      console.log(layers);
+      createDraw()
+    })
+  })
+
+
+  function createDraw() {
+    if (!drawHandler) {
+      drawHandler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Polygon, SuperMap3D.ClampMode.Space)
+
+      drawHandler.activeEvt.addEventListener(function (isActive) {
+        if (isActive) {
+          viewer._element.style.cursor = ""
+          $(".supermap3d-viewer").addClass("drawCur")
+        } else {
+          $(".supermap3d-viewer").removeClass("drawCur")
+        }
+      });
+
+      // 监听handler移动事件,返回鼠标在屏幕的位置
+      drawHandler.movingEvt.addEventListener((windowPosition) => {
+        tooltip.showAt(windowPosition, `<p>点击绘制面,右击结束</p>`);
+      })
+
+      // 监听绘制是否完成,获取绘制结果
+      drawHandler.drawEvt.addEventListener((result) => {
+        console.log(result);
+        tooltip.setVisible(false);
+        const polygon = result.object
+        const positions = polygon.positions // 组成面的点的笛卡尔3坐标数组
+        const points = formatDegreesData(positions)
+        querySupermap(points)
+      })
+
+      drawHandler.activate();
+    } else {
+      drawHandler.activate();
+    }
+  }
+
+  /**
+   * @description: 将笛卡尔3坐标数组格式化为经纬度坐标,转为经纬度坐标数组
+   * @param {Cartesian3[]} positions
+   * @return {*}
+   */
+  function formatDegreesData(positions) {
+    return positions.map((position) => {
+      const cartographic = SuperMap3D.Cartographic.fromCartesian(position)
+      const x = SuperMap3D.Math.toDegrees(cartographic.longitude)
+      const y = SuperMap3D.Math.toDegrees(cartographic.latitude)
+      return { x, y }
+    })
+  }
+
+  /**
+   * @description: 超图空间服务查询
+   * @param {{x:Degrees,y:Degrees}[]} points
+   * @return {*}
+   */
+  function querySupermap(points) {
+    const queryObj = {
+      // 查询模式-必选
+      getFeatureMode: "SPATIAL",
+      // 空间查询模式-SPATIAL、SPATIAL_ATTRIBUTEFILTER时，此参数必选-当数据类型为Geo_Point时，支持的空间查询模式仅为CONTAIN。当数据类型为Geo_Shape时，支持的空间查询模式CONTAIN、WITHIN、INTERSECT、DISJOINT。
+      spatialQueryMode: "CONTAIN",
+      // 待查询的数据集数组-数据集名称由数据源名和数据集名构成-必选
+      datasetNames: ["二维数据:Building"],
+      // 几何对象-当 getFeatureMode（查询模式）为BUFFER、BUFFER_ATTRIBUTEFILTER、SPATIAL、SPATIAL_ATTRIBUTEFILTER时，此参数必选
+      geometry: {
+        points,
+        type: "REGION"
+      }
+    };
+    const paramsJson = JSON.stringify(queryObj)
+    console.log(queryObj);
+    $.ajax({
+      type: "post",
+      url: "http://www.supermapol.com/realspace/services/data-cbd/rest/data/featureResults.rjson?returnContent=true",
+      data: paramsJson,
+      success: function (result) {
+        const resultObj = JSON.parse(result);
+        console.log(resultObj);
+        if (resultObj.features.length > 0) {
+          renderEntities(resultObj.features)
+        }
+      },
+      error: function (msg) {
+        console.log(msg);
+      },
+      complete: function () {
+        console.log("complete");
+      }
+    })
+  }
+
+
+  /**
+   * @description: 根据features绘制Entity
+   * @param {*} features
+   * @return {*}
+   */
+  function renderEntities(features) {
+    viewer.entities.removeAll()
+    features.forEach(feature => {
+      let res = ""
+      for (let j = 0; j < feature.fieldNames.length; j++) {
+        const index = j.toString();
+        if (j == 0) {
+          des = '<table class="supermap3d-infoBox-defaultTable"><tbody>' + '<tr><th>' + feature.fieldNames["0"] + '</th><td>' + feature.fieldValues["0"] + '</td></tr>';
+        } else if (j == feature.fieldNames.length - 1) {
+          des += '<tr><th>' + feature.fieldNames[index] + '</th><td>' + feature.fieldValues[index] + '</td></tr>' + "</tbody></table>";
+        } else {
+          des += '<tr><th>' + feature.fieldNames[index] + '</th><td>' + feature.fieldValues[index] + '</td></tr>';
+        }
+      }
+      viewer.entities.add({
+        position: SuperMap3D.Cartesian3.fromDegrees(parseFloat(feature.fieldValues["12"]), parseFloat(feature.fieldValues["13"]), parseFloat(feature.fieldValues["16"])),
+        billboard: {
+          image: '../assets/location4.png',
+          width: 30,
+          height: 40,
+        },
+        name: feature.fieldValues["11"],
+        description: des
+      })
+    });
+  }
+</script>
+
+</html>
