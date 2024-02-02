@@ -2,7 +2,7 @@
  * @Author: quling
  * @Date: 2024-01-29 14:27:19
  * @LastEditors: quling
- * @LastEditTime: 2024-02-01 14:19:51
+ * @LastEditTime: 2024-02-02 14:43:28
  * @Description: 
  * @FilePath: \supermap-webGL\examples\11_query.html
 -->
@@ -20,6 +20,11 @@
   <script type="text/javascript" src="../lib/js/jquery.min.js"></script>
   <script type="text/javascript" src="../lib/Build/SuperMap3D/SuperMap3D.js"></script>
   <script type="text/javascript" src="../lib/js/config.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.10.0/proj4.js"
+    integrity="sha512-e3rsOu6v8lmVnZylXpOq3DO/UxrCgoEMqosQxGygrgHlves9HTwQzVQ/dLO+nwSbOSAecjRD7Y/c4onmiBVo6w=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
   <style>
     body {
       position: relative;
@@ -43,7 +48,7 @@
 <body>
   <div class="operation">
     <button id="addSupermap" class="button black">添加超图场景</button>
-    <button id="loadTin" class="button black">打开地形</button>
+    <button id="addArcGIS" class="button black">加载Arcgis服务</button>
   </div>
   <div id="Container"></div>
 </body>
@@ -63,24 +68,34 @@
     })
 
     scene = viewer.scene
+    camera = scene.camera
     tooltip = createTooltip(document.body);
   }
 
   onload(SuperMap3D)
 
+  /**
+   * @description: 添加超图场景
+   * @param {*} 
+   * @return {*}
+   */
   $("#addSupermap").click(function () {
     const promise = scene.open(URL_CONFIG.SCENE_CBD, "CBD")
     $(this).attr("disabled", true);
     SuperMap3D.when(promise, (layers) => {
       console.log(layers);
-      createDraw()
+      createDraw(querySupermap)
     })
   })
 
 
-  function createDraw() {
+  /**
+   * @description: 绘制
+   * @return {*}
+   */
+  function createDraw(stopCallBack) {
     if (!drawHandler) {
-      drawHandler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Polygon, SuperMap3D.ClampMode.Space)
+      drawHandler = new SuperMap3D.DrawHandler(viewer, SuperMap3D.DrawMode.Polygon, SuperMap3D.ClampMode.Ground)
 
       drawHandler.activeEvt.addEventListener(function (isActive) {
         if (isActive) {
@@ -102,8 +117,7 @@
         tooltip.setVisible(false);
         const polygon = result.object
         const positions = polygon.positions // 组成面的点的笛卡尔3坐标数组
-        const points = formatDegreesData(positions)
-        querySupermap(points)
+        stopCallBack && stopCallBack(positions)
       })
 
       drawHandler.activate();
@@ -115,7 +129,7 @@
   /**
    * @description: 将笛卡尔3坐标数组格式化为经纬度坐标,转为经纬度坐标数组
    * @param {Cartesian3[]} positions
-   * @return {*}
+   * @return {{x:Degrees,y:Degrees}[]} points
    */
   function formatDegreesData(positions) {
     return positions.map((position) => {
@@ -128,10 +142,11 @@
 
   /**
    * @description: 超图空间服务查询
-   * @param {{x:Degrees,y:Degrees}[]} points
+   * @param {Cartesian3[]} positions
    * @return {*}
    */
-  function querySupermap(points) {
+  function querySupermap(positions) {
+    const points = formatDegreesData(positions)
     const queryObj = {
       // 查询模式-必选
       getFeatureMode: "SPATIAL",
@@ -188,6 +203,7 @@
         }
       }
       viewer.entities.add({
+        // 将经纬度高程转换为笛卡尔3
         position: SuperMap3D.Cartesian3.fromDegrees(parseFloat(feature.fieldValues["12"]), parseFloat(feature.fieldValues["13"]), parseFloat(feature.fieldValues["16"])),
         billboard: {
           image: '../assets/location4.png',
@@ -198,6 +214,82 @@
         description: des
       })
     });
+  }
+
+  $("#addArcGIS").click(async () => {
+    $(this).attr("disabled", true)
+
+    const arcgis = new SuperMap3D.ArcGisMapServerImageryProvider({
+      // url: "http://192.168.1.212:6080/arcgis/rest/services/SCYLSJ/MapServer"
+      // url: "http://192.168.1.181:16080/arcgis/rest/services/LZ/LZ_GLSJ/MapServer"
+      url: "http://192.168.1.68:6080/arcgis/rest/services/CZGH/CZGH/MapServer"
+      // url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+    })
+    const layer = await viewer.imageryLayers.addImageryProvider(arcgis)
+    console.log(layer);
+    camera.setView({
+      // 兰州位置
+      // destination: new SuperMap3D.Cartesian3(-1225994.6126557533, 5019492.465861876, 3731808.4549457263),
+      // CZGH位置
+      destination: new SuperMap3D.Cartesian3(-2565240.8158761165, 5020201.666434277, 3003932.5215713596),
+      // 泸州位置
+      // destination: new SuperMap3D.Cartesian3.fromDegrees(105.39, 28.91, 105.40531821331771),
+    });
+    createDraw(queryArcGis)
+  })
+
+  function queryArcGis(positions) {
+
+    const coordinates = positions.map((position) => {
+      const cartographic = SuperMap3D.Cartographic.fromCartesian(position)
+      // 定义地理坐标（经纬度）
+      const lon = SuperMap3D.Math.toDegrees(cartographic.longitude) // 经度
+      const lat = SuperMap3D.Math.toDegrees(cartographic.latitude) // 纬度
+
+      // 定义坐标系
+      const projectionFrom = 'EPSG:4326'; // WGS 84 坐标系（经纬度）
+      const projectionTo = 'EPSG:4490'; // GCJ-02 坐标系（中国大地坐标系2000）
+
+      // 定义坐标转换
+      proj4.defs(projectionTo, '+proj=longlat +ellps=GRS80 +no_defs');
+
+      // 使用Proj4js进行转换
+      const transformedCoordinates = proj4(projectionFrom, projectionTo, [lon, lat]);
+
+      console.log('Transformed Coordinates:', transformedCoordinates);
+
+      // return [lon, lat]
+      return transformedCoordinates
+    })
+
+    console.log(coordinates);
+
+
+    const queryObj = {
+      f: "json",
+      geometry: JSON.stringify({ "spatialReference": { "wkid": 4490 }, "rings": [coordinates] }),
+      outFields: "*",
+      returnGeometry: false,
+      spatialRel: "esriSpatialRelIntersects",
+      where: "1 = 1",
+      geometryType: "esriGeometryPolygon",
+      inSR: 4490,
+    };
+    const paramsJson = JSON.stringify(queryObj)
+    console.log(queryObj);
+
+    $.ajax({
+      type: "get",
+      url: "http://192.168.1.181:16080/arcgis/rest/services/LZ/LZ_GLSJ/MapServer/0/query",
+      data: queryObj,
+      success: function (result) {
+        const resultObj = JSON.parse(result);
+        console.log(resultObj);
+      },
+      error: function (msg) {
+        console.log(msg);
+      }
+    })
   }
 </script>
 
